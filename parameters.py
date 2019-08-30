@@ -30,6 +30,7 @@ if USE_ON_MEMORY:
 NUM_DATA_LOAD_THREAD = int(os.environ.get('NUM_DATA_LOAD_THREAD', '1'))
 if NUM_DATA_LOAD_THREAD > BATCH_SIZE:
     NUM_DATA_LOAD_THREAD = BATCH_SIZE
+PRETRAIN = bool(os.environ.get('PRETRAIN', 'True').lower() == 'true')
 
 # Augmentation params
 ROTATION_RANGE = int(os.environ.get('ROTATION_RANGE', '20'))
@@ -85,5 +86,4 @@ parameters = {
     'DATA_FORMAT': DATA_FORMAT,
     'DTYPE': DTYPE
 }
-
 

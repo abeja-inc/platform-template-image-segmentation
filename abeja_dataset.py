@@ -1,4 +1,4 @@
-mport re
+import re
 from abeja.datasets import Client as DatasetsClient
 from abeja.datalake import Client as DatalakeClient
 import os
@@ -11,9 +11,6 @@ from torchvision.datasets.vision import VisionDataset
 class AbejaDataset(VisionDataset):
     def __init__(self, 
                 root,
-                user_id,
-                personal_access_token,
-                organization_id,
                 dataset_id,
                 early_stopping_test_size = 0,
                 train_data = True,
@@ -23,14 +20,8 @@ class AbejaDataset(VisionDataset):
         
         super(AbejaDataset, self).__init__(root, transforms, transform, target_transform)
 
-        # set credential
-        credential = {
-            'user_id': user_id,
-            'personal_access_token': personal_access_token
-        }
-
-        datasets_client = DatasetsClient(organization_id, credential)
-        self.datalake_client = DatalakeClient(organization_id, credential)
+        datasets_client = DatasetsClient()
+        self.datalake_client = DatalakeClient()
         dataset = datasets_client.get_dataset(dataset_id)
         self.labels = dataset.props['categories'][0]['labels']
 

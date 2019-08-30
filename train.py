@@ -22,15 +22,11 @@ from parameters import(
     DROPOUT_SEED, ROTATION_RANGE, WIDTH_SHIFT_RANGE, HEIGHT_SHIFT_RANGE,
     BRIGHTNESS_RANGE, SHEAR_RANGE, ZOOM_RANGE, CHANNEL_SHIFT_RANGE,
     FILL_MODE, CVAL, HORIZONTAL_FLIP, VERTICAL_FLIP, RESCALE,
-    DATA_FORMAT, DTYPE
+    DATA_FORMAT, DTYPE, PRETRAIN
 )
 
 ABEJA_TRAINING_RESULT_DIR = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 log_path = os.path.join(ABEJA_TRAINING_RESULT_DIR, 'logs')
-
-USER_ID ='user-1809693503439'
-PERSONAL_ACCESS_TOKEN = '6bd87a1de37c6fadb4e2e1de7c86074625a73e2d'
-ORGANIZATION_ID = '1225098818583'
 
 """
 def get_dataset(name, image_set, transform):
@@ -134,17 +130,11 @@ def handler(context):
     DATASET_ID = context['datasets']['data']
 
     dataset =  AbejaDataset(root = None,
-                        user_id = USER_ID,
-                        personal_access_token = PERSONAL_ACCESS_TOKEN,
-                        organization_id = ORGANIZATION_ID,
                         dataset_id = DATASET_ID,
                         early_stopping_test_size = EARLY_STOPPING_TEST_SIZE,
                         train_data = True,
                         transforms=get_transform(train=True))
     dataset_test =  AbejaDataset(root = None,
-                        user_id = USER_ID,
-                        personal_access_token = PERSONAL_ACCESS_TOKEN,
-                        organization_id = ORGANIZATION_ID,
                         dataset_id = DATASET_ID,
                         early_stopping_test_size = EARLY_STOPPING_TEST_SIZE,
                         train_data = False,
