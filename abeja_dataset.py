@@ -77,7 +77,7 @@ class AbejaDataset(VisionDataset):
         return len(self.datalake_files)
 
     def num_class(self):
-        return len(self.labels)
+        return len(self.labels)+1 # label+background
     
 
 
