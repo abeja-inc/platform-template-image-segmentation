@@ -65,7 +65,7 @@ class AbejaDataset(VisionDataset):
         # target image
         content = datalake_file.get_content(cache=True)
         file_like_object = io.BytesIO(content)
-        target = Image.open(file_like_object).convert('RGB')
+        target = Image.open(file_like_object).convert('P')
 
         if self.transforms is not None:
             src_img, target = self.transforms(src_img, target)

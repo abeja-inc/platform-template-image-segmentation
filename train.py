@@ -117,7 +117,7 @@ def handler(context):
     args.epochs = EPOCHS
     args.workers = NUM_DATA_LOAD_THREAD
     args.output_dir = ABEJA_TRAINING_RESULT_DIR
-    args.pretrained = True 
+    args.pretrained = PRETRAIN
 
     if args.output_dir:
         utils.mkdir(args.output_dir)
@@ -162,6 +162,7 @@ def handler(context):
                                                                  aux_loss=args.aux_loss,
                                                                  pretrained=args.pretrained)
     model.to(device)
+
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
@@ -194,6 +195,10 @@ def handler(context):
         optimizer,
         lambda x: (1 - x / (len(data_loader) * args.epochs)) ** 0.9)
 
+    print('num classes:', num_classes)
+    print(len(dataset), 'train samples')
+    print(len(dataset_test), 'test samples')
+    
     start_time = time.time()
     for epoch in range(args.epochs):
         if args.distributed:
@@ -222,7 +227,8 @@ def parse_args():
     parser.add_argument('--dataset', default='voc', help='dataset')
     parser.add_argument('--model', default='fcn_resnet101', help='model')
     parser.add_argument('--aux-loss', action='store_true', help='auxiliar loss')
-    parser.add_argument('--device', default='cuda', help='device')
+    parser.add_argument('--device', default='cpu', help='device')
+    #parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('-b', '--batch-size', default=8, type=int)
     parser.add_argument('--epochs', default=30, type=int, metavar='N',
                         help='number of total epochs to run')
@@ -248,7 +254,7 @@ def parse_args():
         "--pretrained",
         dest="pretrained",
         help="Use pre-trained models from the modelzoo",
-        action="store_true",
+        action="store_false",
     )
     # distributed training parameters
     parser.add_argument('--world-size', default=1, type=int,
