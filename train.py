@@ -133,7 +133,6 @@ def handler(context):
     args.epochs = parameters.EPOCHS
     args.workers = parameters.NUM_DATA_LOAD_THREAD
     args.output_dir = ABEJA_TRAINING_RESULT_DIR
-    args.pretrained = parameters.PRETRAIN
     args.model = parameters.SEG_MODEL
 
     if args.output_dir:
@@ -157,8 +156,6 @@ def handler(context):
                         transforms=get_transform(train=False))
     num_classes = dataset.num_class()
     image, target = dataset[0]
-    print(target)
-    pass
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
@@ -177,7 +174,7 @@ def handler(context):
         sampler=test_sampler, num_workers=args.workers,
         collate_fn=utils.collate_fn)
 
-    model = create_model(num_classes=num_classes, model_name=args.model)
+    model = create_model(num_classes=num_classes, model_name=args.model, finetuning=parameters.FINE_TUNING)
     model.to(device)
 
     if args.distributed:

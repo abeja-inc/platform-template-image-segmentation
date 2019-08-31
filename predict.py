@@ -17,12 +17,12 @@ import parameters
 
 datasets_client = DatasetsClient()
 datalake_client = DatalakeClient()
-dataset = datasets_client.get_dataset(dataset_id)
+dataset = datasets_client.get_dataset(os.environ.get('DATASET_ID', ''))
 num_classes = len(dataset.props['categories'][0]['labels']) + 1
 
 model = train.create_model(num_classes=num_classes, model_name=parameters.SEG_MODEL, finetuning=parameters.FINE_TUNING)
 model.load_state_dict(torch.load('model.pth'))
-vice = torch.device(parameters.DEVICE)
+device = torch.device(parameters.DEVICE)
 model.to(device)
 model = model.eval()
 
