@@ -235,14 +235,7 @@ def handler(context):
     print('Training time {}'.format(total_time_str))
 
     #save final model
-    utils.save_on_master(
-        {
-            'model': model_without_ddp.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'epoch': epoch,
-            'args': args
-        },
-        os.path.join(args.output_dir, 'model.pth'.format(epoch)))
+    torch.save(model.state_dict(), os.path.join(args.output_dir, 'model.pth'.format(epoch)))
 
 
 def parse_args():
