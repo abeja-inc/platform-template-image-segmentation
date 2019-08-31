@@ -32,11 +32,18 @@ def get_dataset(name, image_set, transform):
 """
 
 def create_model(num_classes, model_name, finetuning = False):
-    if((model_name is not 'deeplabv3_resnet101') and (model_name is not 'fcn_resnet101')):
+    """
+    Create ML Network.
+    :param num_classes: Number of classes.
+    :param model_name: deeplabv3_resnet101 or fcn_resnet101.
+    :param finetuning: if true, all paramters are trainable
+    :return model: ML Network.
+    """
+    if((model_name!='deeplabv3_resnet101') and (model_name!='fcn_resnet101')):
         raise ValueError(model_name + " is not supported")
     
     model = torchvision.models.segmentation.__dict__[model_name](pretrained = True)
-    if(model_name is 'deeplabv3_resnet101'):
+    if(model_name=='deeplabv3_resnet101'):
         model.classifier[4] = nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
     else:
         model.classifier[4] = nn.Conv2d(512, num_classes, kernel_size=(1, 1), stride=(1, 1))
