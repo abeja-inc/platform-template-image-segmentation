@@ -11,19 +11,7 @@ import transforms as T
 import utils
 
 from abeja_dataset import AbejaDataset
-
-
-
-from parameters import(
-    BATCH_SIZE, EPOCHS, IMG_ROWS, IMG_COLS, NB_CHANNELS,
-    LEARNING_RATE, ADAM_BETA_1, ADAM_BETA_2, ADAM_EPSILON, ADAM_DECAY,
-    RANDOM_SEED, EARLY_STOPPING_TEST_SIZE, DROPOUT, USE_CACHE,
-    USE_ON_MEMORY, NUM_DATA_LOAD_THREAD, EARLY_STOPPING_PATIENCE,
-    DROPOUT_SEED, ROTATION_RANGE, WIDTH_SHIFT_RANGE, HEIGHT_SHIFT_RANGE,
-    BRIGHTNESS_RANGE, SHEAR_RANGE, ZOOM_RANGE, CHANNEL_SHIFT_RANGE,
-    FILL_MODE, CVAL, HORIZONTAL_FLIP, VERTICAL_FLIP, RESCALE,
-    DATA_FORMAT, DTYPE, PRETRAIN
-)
+import parameters
 
 ABEJA_TRAINING_RESULT_DIR = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 log_path = os.path.join(ABEJA_TRAINING_RESULT_DIR, 'logs')
@@ -42,6 +30,27 @@ def get_dataset(name, image_set, transform):
     ds = ds_fn(p, image_set=image_set, transforms=transform)
     return ds, num_classes
 """
+
+def create_model(num_classes, model_name, finetuning = False):
+    if((model_name is not 'deeplabv3_resnet101') and (model_name is not 'fcn_resnet101')):
+        raise ValueError(model_name + " is not supported")
+    
+    model = torchvision.models.segmentation.__dict__[model_name](pretrained = True)
+    if(model_name is 'deeplabv3_resnet101'):
+        model.classifier[4] = nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
+    else:
+        model.classifier[4] = nn.Conv2d(512, num_classes, kernel_size=(1, 1), stride=(1, 1))
+    model.aux_classifier[4] = nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
+
+    if(not finetuning):
+        for param in model.parameters():
+            param.requires_grad = False
+        for param in model.classifier.parameters():
+            param.requires_grad = True
+        for param in model.aux_classifier.parameters():
+            param.requires_grad = True
+
+    return model
 
 
 
@@ -113,17 +122,17 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
 
 def handler(context):
     args = parse_args()
-    args.batch_size = BATCH_SIZE
-    args.epochs = EPOCHS
-    args.workers = NUM_DATA_LOAD_THREAD
+    args.batch_size = parameters.BATCH_SIZE
+    args.epochs = parameters.EPOCHS
+    args.workers = parameters.NUM_DATA_LOAD_THREAD
     args.output_dir = ABEJA_TRAINING_RESULT_DIR
-    args.pretrained = PRETRAIN
+    args.pretrained = parameters.PRETRAIN
+    args.model = parameters.SEG_MODEL
 
     if args.output_dir:
         utils.mkdir(args.output_dir)
 
     utils.init_distributed_mode(args)
-    print(args)
 
     device = torch.device(args.device)
 
@@ -131,12 +140,12 @@ def handler(context):
 
     dataset =  AbejaDataset(root = None,
                         dataset_id = DATASET_ID,
-                        early_stopping_test_size = EARLY_STOPPING_TEST_SIZE,
+                        early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
                         train_data = True,
                         transforms=get_transform(train=True))
     dataset_test =  AbejaDataset(root = None,
                         dataset_id = DATASET_ID,
-                        early_stopping_test_size = EARLY_STOPPING_TEST_SIZE,
+                        early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
                         train_data = False,
                         transforms=get_transform(train=False))
     num_classes = dataset.num_class()
@@ -158,9 +167,7 @@ def handler(context):
         sampler=test_sampler, num_workers=args.workers,
         collate_fn=utils.collate_fn)
 
-    model = torchvision.models.segmentation.__dict__[args.model](num_classes=num_classes,
-                                                                 aux_loss=args.aux_loss,
-                                                                 pretrained=args.pretrained)
+    model = create_model(num_classes=num_classes, model_name=args.model)
     model.to(device)
 
     if args.distributed:
@@ -198,6 +205,7 @@ def handler(context):
     print('num classes:', num_classes)
     print(len(dataset), 'train samples')
     print(len(dataset_test), 'test samples')
+    print(args)
     
     start_time = time.time()
     for epoch in range(args.epochs):
@@ -218,6 +226,16 @@ def handler(context):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
+
+    #save final model
+    utils.save_on_master(
+        {
+            'model': model_without_ddp.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'epoch': epoch,
+            'args': args
+        },
+        os.path.join(args.output_dir, 'model.pth'.format(epoch)))
 
 
 def parse_args():

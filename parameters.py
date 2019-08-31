@@ -31,6 +31,9 @@ NUM_DATA_LOAD_THREAD = int(os.environ.get('NUM_DATA_LOAD_THREAD', '1'))
 if NUM_DATA_LOAD_THREAD > BATCH_SIZE:
     NUM_DATA_LOAD_THREAD = BATCH_SIZE
 PRETRAIN = bool(os.environ.get('PRETRAIN', 'True').lower() == 'true')
+# fcn_resnet101, fcn_resnet50, deeplabv3_resnet101, deeplabv3_resnet50
+SEG_MODEL = os.environ.get('SEG_MODEL', 'fcn_resnet101')
+DEVICE = os.environ.get('DEVICE','cuda')
 
 # Augmentation params
 ROTATION_RANGE = int(os.environ.get('ROTATION_RANGE', '20'))
@@ -84,6 +87,9 @@ parameters = {
     'VERTICAL_FLIP': VERTICAL_FLIP,
     'RESCALE': RESCALE,
     'DATA_FORMAT': DATA_FORMAT,
-    'DTYPE': DTYPE
+    'DTYPE': DTYPE,
+    'PRETRAIN': PRETRAIN,
+    'SEG_MODEL': SEG_MODEL,
+    'DEVICE': DEVICE
 }
 
