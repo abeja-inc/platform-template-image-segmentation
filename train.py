@@ -1,6 +1,7 @@
 import datetime
 import os
 import time
+import traceback
 
 import torch
 import torch.utils.data
@@ -31,7 +32,8 @@ def get_dataset(name, image_set, transform):
     return ds, num_classes
 """
 
-def create_model(num_classes, model_name, finetuning = False):
+
+def create_model(num_classes, model_name, pretrained = True, finetuning = False):
     """
     Create ML Network.
     :param num_classes: Number of classes.
@@ -42,7 +44,7 @@ def create_model(num_classes, model_name, finetuning = False):
     if((model_name!='deeplabv3_resnet101') and (model_name!='fcn_resnet101')):
         raise ValueError(model_name + " is not supported")
     
-    model = torchvision.models.segmentation.__dict__[model_name](pretrained = True)
+    model = torchvision.models.segmentation.__dict__[model_name](pretrained = pretrained)
     if(model_name=='deeplabv3_resnet101'):
         model.classifier[4] = nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
     else:
@@ -128,113 +130,128 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
 
 
 def handler(context):
-    args = parse_args()
-    args.batch_size = parameters.BATCH_SIZE
-    args.epochs = parameters.EPOCHS
-    args.workers = parameters.NUM_DATA_LOAD_THREAD
-    args.output_dir = ABEJA_TRAINING_RESULT_DIR
-    args.model = parameters.SEG_MODEL
+    print('Start train handler.')
+    if not isinstance(context, dict):
+        message = 'Error: Support only "abeja/all-cpu:19.04" or "abeja/all-gpu:19.04".'
+        print(message)
+        raise Exception(message)
 
-    if args.output_dir:
-        utils.mkdir(args.output_dir)
+    try:
+        args = parse_args()
+        args.batch_size = parameters.BATCH_SIZE
+        args.epochs = parameters.EPOCHS
+        args.workers = parameters.NUM_DATA_LOAD_THREAD
+        args.output_dir = ABEJA_TRAINING_RESULT_DIR
+        args.model = parameters.SEG_MODEL
 
-    utils.init_distributed_mode(args)
+        if ABEJA_TRAINING_RESULT_DIR:
+            utils.mkdir(ABEJA_TRAINING_RESULT_DIR)
 
-    device = torch.device(args.device)
+        utils.init_distributed_mode(args)
 
-    DATASET_ID = context['datasets']['data']
+        device = torch.device(parameters.DEVICE)
 
-    dataset =  AbejaDataset(root = None,
-                        dataset_id = DATASET_ID,
-                        early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
-                        train_data = True,
-                        transforms=get_transform(train=True))
-    dataset_test =  AbejaDataset(root = None,
-                        dataset_id = DATASET_ID,
-                        early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
-                        train_data = False,
-                        transforms=get_transform(train=False))
-    num_classes = dataset.num_class()
+        DATASET_ID = context['datasets']['data']
 
-    if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
-        test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
-    else:
-        train_sampler = torch.utils.data.RandomSampler(dataset)
-        test_sampler = torch.utils.data.SequentialSampler(dataset_test)
-
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=args.batch_size,
-        sampler=train_sampler, num_workers=args.workers,
-        collate_fn=utils.collate_fn, drop_last=True)
-
-    data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1,
-        sampler=test_sampler, num_workers=args.workers,
-        collate_fn=utils.collate_fn)
-
-    model = create_model(num_classes=num_classes, model_name=args.model, finetuning=parameters.FINE_TUNING)
-    model.to(device)
-
-    if args.distributed:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-
-    if args.resume:
-        checkpoint = torch.load(args.resume, map_location='cpu')
-        model.load_state_dict(checkpoint['model'])
-
-    model_without_ddp = model
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        model_without_ddp = model.module
-
-    if args.test_only:
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
-        print(confmat)
-        return
-
-    params_to_optimize = [
-        {"params": [p for p in model_without_ddp.backbone.parameters() if p.requires_grad]},
-        {"params": [p for p in model_without_ddp.classifier.parameters() if p.requires_grad]},
-    ]
-    if args.aux_loss:
-        params = [p for p in model_without_ddp.aux_classifier.parameters() if p.requires_grad]
-        params_to_optimize.append({"params": params, "lr": args.lr * 10})
-    optimizer = torch.optim.SGD(
-        params_to_optimize,
-        lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
-    lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lambda x: (1 - x / (len(data_loader) * args.epochs)) ** 0.9)
-
-    print('num classes:', num_classes)
-    print(len(dataset), 'train samples')
-    print(len(dataset_test), 'test samples')
-    print(args)
-    
-    start_time = time.time()
-    for epoch in range(args.epochs):
+        dataset =  AbejaDataset(root = None,
+                            dataset_id = DATASET_ID,
+                            early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
+                            train_data = True,
+                            transforms=get_transform(train=True))
+        dataset_test =  AbejaDataset(root = None,
+                            dataset_id = DATASET_ID,
+                            early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
+                            train_data = False,
+                            transforms=get_transform(train=False))
+        num_classes = dataset.num_class()
+ 
         if args.distributed:
-            train_sampler.set_epoch(epoch)
-        train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, args.print_freq)
-        confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
-        print(confmat)
-        utils.save_on_master(
-            {
-                'model': model_without_ddp.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'epoch': epoch,
-                'args': args
-            },
-            os.path.join(args.output_dir, 'model_{}.pth'.format(epoch)))
+            train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+            test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
+        else:
+            train_sampler = torch.utils.data.RandomSampler(dataset)
+            test_sampler = torch.utils.data.SequentialSampler(dataset_test)
 
-    total_time = time.time() - start_time
-    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print('Training time {}'.format(total_time_str))
+        data_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=parameters.BATCH_SIZE,
+            sampler=train_sampler, num_workers=parameters.NUM_DATA_LOAD_THREAD,
+            collate_fn=utils.collate_fn, drop_last=True)
 
-    #save final model
-    torch.save(model.state_dict(), os.path.join(args.output_dir, 'model.pth'.format(epoch)))
+        data_loader_test = torch.utils.data.DataLoader(
+            dataset_test, batch_size=1,
+            sampler=test_sampler, num_workers=parameters.NUM_DATA_LOAD_THREAD,
+            collate_fn=utils.collate_fn)
+
+        model = create_model(num_classes=num_classes, 
+                        model_name=parameters.SEG_MODEL, 
+                        pretrained=parameters.PRETRAINED, 
+                        finetuning=parameters.FINE_TUNING)
+        model.to(device)
+
+        if args.distributed:
+            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+
+        if parameters.RESUME:
+            checkpoint = torch.load(parameters.RESUME, map_location='cpu')
+            model.load_state_dict(checkpoint['model'])
+
+        model_without_ddp = model
+        if args.distributed:
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+            model_without_ddp = model.module
+
+        if parameters.TEST_ONLY:
+            confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
+            print(confmat)
+            return
+
+        params_to_optimize = [
+            {"params": [p for p in model_without_ddp.backbone.parameters() if p.requires_grad]},
+            {"params": [p for p in model_without_ddp.classifier.parameters() if p.requires_grad]},
+        ]
+        if parameters.AUX_LOSS:
+            params = [p for p in model_without_ddp.aux_classifier.parameters() if p.requires_grad]
+            params_to_optimize.append({"params": params, "lr": parameters.LEARNING_RATE * 10})
+        optimizer = torch.optim.SGD(
+            params_to_optimize,
+            lr=parameters.LEARNING_RATE, momentum=parameters.MOMENTUM, weight_decay=parameters.WEIGHT_DECAY)
+
+        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer,
+            lambda x: (1 - x / (len(data_loader) * parameters.EPOCHS)) ** 0.9)
+
+        print('num classes:', num_classes)
+        print(len(dataset), 'train samples')
+        print(len(dataset_test), 'test samples')
+        print(args)
+    
+        start_time = time.time()
+        for epoch in range(parameters.EPOCHS):
+            if args.distributed:
+                train_sampler.set_epoch(epoch)
+            train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, parameters.PRINT_FREQ)
+            confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
+            print(confmat)
+            utils.save_on_master(
+                {
+                    'model': model_without_ddp.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'epoch': epoch,
+                    'args': args
+                },
+                os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model_{}.pth'.format(epoch)))
+
+        total_time = time.time() - start_time
+        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        print('Training time {}'.format(total_time_str))
+        
+        #save final model
+        torch.save(model.state_dict(), os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model.pth'))
+                   
+    except Exception as e:
+        print(str(e))
+        print(traceback.format_exc())
+        raise e
 
 
 def parse_args():
