@@ -155,7 +155,6 @@ def handler(context):
                         train_data = False,
                         transforms=get_transform(train=False))
     num_classes = dataset.num_class()
-    image, target = dataset[0]
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
