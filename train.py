@@ -8,6 +8,7 @@ import torch.utils.data
 from torch import nn
 import torchvision
 
+import json
 import transforms as T
 import utils
 
@@ -151,7 +152,11 @@ def handler(context):
 
         device = torch.device(parameters.DEVICE)
 
-        DATASET_ID = context['datasets']['data']
+        DATASET_ID = ""
+        dataset_ids = context['datasets'].values()
+        for idx in dataset_ids:
+            DATASET_ID = idx
+            break
 
         dataset =  AbejaDataset(root = None,
                             dataset_id = DATASET_ID,
@@ -247,6 +252,11 @@ def handler(context):
         
         #save final model
         torch.save(model.state_dict(), os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model.pth'))
+        save_param = {'SEG_MODEL': parameters.SEG_MODEL,'NUM_CLASSES': num_classes}
+        f = open(os.path.join(ABEJA_TRAINING_RESULT_DIR,'parameters.json'), 'w')
+        json.dump(save_param,f)
+        f.close()
+
                    
     except Exception as e:
         print(str(e))
