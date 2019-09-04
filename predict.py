@@ -72,18 +72,7 @@ def decode_segmap(out, label_colors):
     
     rgb = np.stack([r, g, b], axis=2)
     return rgb
-    
-def segmentation(model, img, device):
-    trf = T.Compose([T.Resize(520), 
-                    T.ToTensor(), 
-                    T.Normalize(mean = [0.485, 0.456, 0.406], 
-                                std = [0.229, 0.224, 0.225])])
-    inp = trf(img).unsqueeze(0).to(device)
-    output = model(img)
-    segmap = decode_segmap(output, color_map)
-    return Image.fromarray(segmap)
-
-
+   
 training_dir = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 dataset_ids = os.environ.get('TRAINING_JOB_DATASET_IDS', '').split(',')
 device = torch.device(parameters.DEVICE)
@@ -92,6 +81,15 @@ model, num_classes = load_model(training_dir, device)
 color_map = create_colormap(num_classes)
 props = get_dataset_properties(dataset_ids)
 
+def segmentation(img):
+    trf = T.Compose([T.Resize(520), 
+                    T.ToTensor(), 
+                    T.Normalize(mean = [0.485, 0.456, 0.406], 
+                                std = [0.229, 0.224, 0.225])])
+    inp = trf(img).unsqueeze(0).to(device)
+    output = model(inp)['out']
+    segmap = decode_segmap(output, color_map)
+    return Image.fromarray(segmap)
 
 def handler(request, context):
     print('Start predict handler.')
@@ -110,8 +108,9 @@ def handler(request, context):
         rgbimg = Image.open(img).convert('RGB')
 
         segmap = segmentation(rgbimg)
-        segmap.save(os.path.join(training_dir, 'tmp.png')))
-        b64 = base64.encodestring(open('tmp.png', 'rb').read())
+        save_file = os.path.join(training_dir, 'tmp.png')
+        segmap.save(save_file)
+        b64 = base64.encodestring(open(save_file, 'rb').read())
 
         return {
             'status_code': http.HTTPStatus.OK,
@@ -137,6 +136,6 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    img = Image.open(args.src)
-    img.save(args.dst)
-    segmentation(img)
+    img = Image.open(args.src).convert('RGB')
+    seg_img = segmentation(img)
+    seg_img.save(args.dst)
