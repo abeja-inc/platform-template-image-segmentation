@@ -75,7 +75,8 @@ def decode_segmap(out, label_colors):
    
 training_dir = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 dataset_ids = os.environ.get('TRAINING_JOB_DATASET_IDS', '').split(',')
-device = torch.device(parameters.DEVICE)
+device_name = parameters.DEVICE if torch.cuda.is_available() else 'cpu'
+device = torch.device(device_name)
 
 model, num_classes = load_model(training_dir, device)
 color_map = create_colormap(num_classes)

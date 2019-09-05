@@ -171,7 +171,8 @@ def handler(context):
 
         utils.init_distributed_mode(args)
 
-        device = torch.device(parameters.DEVICE)
+        device_name = parameters.DEVICE if torch.cuda.is_available() else 'cpu'
+        device = torch.device(device_name)
 
         
         trainval_info = get_trainval_dataset_index(context['datasets'], parameters.EARLY_STOPPING_TEST_SIZE)
