@@ -82,6 +82,27 @@ def get_transform(train):
     return T.Compose(transforms)
 
 
+def get_trainval_dataset_index(dataset_list, early_stopping_test_size):
+    train_dataset_id = None
+    val_dataset_id = None
+    train_list = None
+    val_list = None
+    for name, idx in dataset_list.items():
+        if(name=="val"):
+            val_dataset_id = idx
+        elif train_dataset_id is None:
+            train_dataset_id = idx
+    
+    if(val_dataset_id is None):
+        val_dataset_id = train_dataset_id
+        dataset_size = getDatasetSize(train_dataset_id)
+        test_size = int(dataset_size * early_stopping_test_size)
+        train_list = range(test_size,dataset_size)
+        val_list = range(0,test_size)
+     
+    return {'train_dataset_id': train_dataset_id, 'val_dataset_id': val_dataset_id, 'train_list': train_list, 'val_list': val_list}
+    
+
 def criterion(inputs, target):
     losses = {}
     for name, x in inputs.items():
@@ -152,26 +173,21 @@ def handler(context):
 
         device = torch.device(parameters.DEVICE)
 
-        DATASET_ID = ""
-        dataset_ids = context['datasets'].values()
-        for idx in dataset_ids:
-            DATASET_ID = idx
-            break
         
-        dataset_size = getDatasetSize(DATASET_ID)
-        test_size = int(dataset_size * parameters.EARLY_STOPPING_TEST_SIZE)
-        train_list = range(test_size,dataset_size)
-        test_list = range(0,test_size)
+        trainval_info = get_trainval_dataset_index(context['datasets'], parameters.EARLY_STOPPING_TEST_SIZE)
         
         dataset =  AbejaDataset(root = None,
-                            dataset_id = DATASET_ID,
+                            dataset_id = trainval_info['train_dataset_id'],
                             transforms=get_transform(train=True),
-                            indices = train_list)
+                            indices = trainval_info['train_list'])
         dataset_test =  AbejaDataset(root = None,
-                            dataset_id = DATASET_ID,
+                            dataset_id = trainval_info['val_dataset_id'],
                             transforms=get_transform(train=False),
-                            indices = test_list)
+                            indices = trainval_info['val_list'])
         num_classes = dataset.num_class()
+        
+        if(len(dataset)<=0 or len(dataset_test)<=0):
+            raise Exception("Training or Test dataset size is too small. Please add more dataset or set EARLY_STOPPING_TEST_SIZE properly")
  
         if args.distributed:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
