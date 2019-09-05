@@ -1,5 +1,5 @@
 import datetime
-import os
+import os, glob
 import time
 import traceback
 
@@ -259,6 +259,14 @@ def handler(context):
         f = open(os.path.join(ABEJA_TRAINING_RESULT_DIR,'parameters.json'), 'w')
         json.dump(save_param,f)
         f.close()
+        
+        #remove checkpoints files
+        print('removing checkpoint files')
+        rm_file_path = os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model_*.pth')
+        remove_files = glob.glob(rm_file_path)
+        for f in remove_files:
+            os.remove(f)
+        
 
                    
     except Exception as e:
