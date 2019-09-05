@@ -12,7 +12,7 @@ import json
 import transforms as T
 import utils
 
-from abeja_dataset import AbejaDataset
+from abeja_dataset import AbejaDataset, getDatasetSize
 import parameters
 
 ABEJA_TRAINING_RESULT_DIR = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
@@ -157,17 +157,20 @@ def handler(context):
         for idx in dataset_ids:
             DATASET_ID = idx
             break
-
+        
+        dataset_size = getDatasetSize(DATASET_ID)
+        test_size = int(dataset_size * parameters.EARLY_STOPPING_TEST_SIZE)
+        train_list = range(test_size,dataset_size)
+        test_list = range(0,test_size)
+        
         dataset =  AbejaDataset(root = None,
                             dataset_id = DATASET_ID,
-                            early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
-                            train_data = True,
-                            transforms=get_transform(train=True))
+                            transforms=get_transform(train=True),
+                            indices = train_list)
         dataset_test =  AbejaDataset(root = None,
                             dataset_id = DATASET_ID,
-                            early_stopping_test_size = parameters.EARLY_STOPPING_TEST_SIZE,
-                            train_data = False,
-                            transforms=get_transform(train=False))
+                            transforms=get_transform(train=False),
+                            indices = test_list)
         num_classes = dataset.num_class()
  
         if args.distributed:

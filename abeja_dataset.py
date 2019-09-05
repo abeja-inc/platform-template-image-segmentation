@@ -8,15 +8,23 @@ import io
 from PIL import Image
 from torchvision.datasets.vision import VisionDataset
 
+
+def getDatasetSize(dataset_id):
+        datasets_client = DatasetsClient()
+        dataset = datasets_client.get_dataset(dataset_id)
+        count = 0
+        for item in dataset.dataset_items.list(prefetch=False):
+            count += 1
+        return count
+    
 class AbejaDataset(VisionDataset):
     def __init__(self, 
                 root,
                 dataset_id,
-                early_stopping_test_size = 0,
-                train_data = True,
                 transform=None,
                 target_transform=None,
-                transforms=None):
+                transforms=None,
+                indices=None):
         
         super(AbejaDataset, self).__init__(root, transforms, transform, target_transform)
 
@@ -25,24 +33,19 @@ class AbejaDataset(VisionDataset):
         dataset = datasets_client.get_dataset(dataset_id)
         self.labels = dataset.props['categories'][0]['labels']
 
-        datalake_files = list()
+        self.datalake_files = list()
+        idx = 0
         for item in dataset.dataset_items.list(prefetch=False):
+            if indices is not None and not idx in indices:
+                idx +=1
+                continue
             # 'combined.data_uri' は (多分) category内の全てのlabelをひとつに纏めた画像
             # 'layers[].data_uri' は特定の 'label_id' のみの画像
             data_uri = item.attributes['segmentation-image']['combined']['data_uri']
             m = re.search(r'datalake://(.+?)/(.+?)$', data_uri)
             src_data = item.source_data[0]
-            datalake_files.append(((m.group(1),m.group(2)), src_data))
-
-        self.datalake_files = list()
-        test_size = int(len(datalake_files) * early_stopping_test_size)
-        if(test_size):
-            self.datalake_files = datalake_files[test_size:] if train_data else datalake_files[:test_size]
-        else:
-            if(train_data is False):
-                raise Exception("Dataset size is too small. Please add more dataset.")
-            self.datalake_files = datalake_files
-
+            self.datalake_files.append(((m.group(1),m.group(2)), src_data))
+            idx += 1
 
 
     def __getitem__(self, index):
