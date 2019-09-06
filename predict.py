@@ -111,7 +111,7 @@ def handler(request, context):
         segmap = segmentation(rgbimg)
         save_file = os.path.join(training_dir, 'tmp.png')
         segmap.save(save_file)
-        b64 = base64.encodestring(open(save_file, 'rb').read())
+        b64 = base64.b64encode(open(save_file, 'rb').read()).decode('ascii')
 
         return {
             'status_code': http.HTTPStatus.OK,
