@@ -21,7 +21,7 @@ if NUM_DATA_LOAD_THREAD > BATCH_SIZE:
     NUM_DATA_LOAD_THREAD = BATCH_SIZE
 
 # fcn_resnet101, deeplabv3_resnet101
-SEG_MODEL = os.environ.get('SEG_MODEL', 'fcn_resnet101')
+SEG_MODEL = os.environ.get('SEG_MODEL', 'deeplabv3_resnet101')
 DEVICE = os.environ.get('DEVICE','cuda')
 FINE_TUNING = bool(os.environ.get('FINE_TUNING', 'False').lower() == 'true')
 PRINT_FREQ = int(os.environ.get('PRINT_FREQ', '10'))
