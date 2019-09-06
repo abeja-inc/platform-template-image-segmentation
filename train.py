@@ -273,9 +273,8 @@ def handler(context):
         #save final model
         torch.save(model.to('cpu').state_dict(), os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model.pth'))
         save_param = {'SEG_MODEL': parameters.SEG_MODEL,'NUM_CLASSES': num_classes}
-        f = open(os.path.join(ABEJA_TRAINING_RESULT_DIR,'parameters.json'), 'w')
-        json.dump(save_param,f)
-        f.close()
+        with open(os.path.join(ABEJA_TRAINING_RESULT_DIR,'parameters.json'), 'w') as f:
+            json.dump(save_param,f)
         
         #remove checkpoints files
         print('removing checkpoint files')

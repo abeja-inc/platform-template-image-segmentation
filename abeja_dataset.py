@@ -12,10 +12,7 @@ from torchvision.datasets.vision import VisionDataset
 def getDatasetSize(dataset_id):
         datasets_client = DatasetsClient()
         dataset = datasets_client.get_dataset(dataset_id)
-        count = 0
-        for item in dataset.dataset_items.list(prefetch=False):
-            count += 1
-        return count
+        return dataset.total_count
     
 class AbejaDataset(VisionDataset):
     def __init__(self, 
