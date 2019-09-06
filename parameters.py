@@ -13,7 +13,7 @@ LEARNING_RATE = float(os.environ.get('LEARNING_RATE', '0.01'))
 MOMENTUM = float(os.environ.get('MOMENTUM','0.9'))
 WEIGHT_DECAY = float(os.environ.get('WEIGHT_DECAY','1e-4'))
 USE_CACHE = bool(os.environ.get('USE_CACHE', 'True').lower() == 'true')
-USE_ON_MEMORY = bool(os.environ.get('USE_ON_MEMORY', 'True').lower() == 'true')
+USE_ON_MEMORY = bool(os.environ.get('USE_ON_MEMORY', 'False').lower() == 'true')
 if USE_ON_MEMORY:
     USE_CACHE = True
 NUM_DATA_LOAD_THREAD = int(os.environ.get('NUM_DATA_LOAD_THREAD', '1'))

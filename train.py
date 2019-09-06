@@ -178,13 +178,17 @@ def handler(context):
         trainval_info = get_trainval_dataset_index(context['datasets'], parameters.EARLY_STOPPING_TEST_SIZE)
         
         dataset =  AbejaDataset(root = None,
-                            dataset_id = trainval_info['train_dataset_id'],
-                            transforms=get_transform(train=True),
-                            indices = trainval_info['train_list'])
+                                dataset_id = trainval_info['train_dataset_id'],
+                                transforms=get_transform(train=True),
+                                prefetch=parameters.USE_ON_MEMORY,
+                                use_cache=parameters.USE_CACHE,
+                                indices = trainval_info['train_list'])
         dataset_test =  AbejaDataset(root = None,
-                            dataset_id = trainval_info['val_dataset_id'],
-                            transforms=get_transform(train=False),
-                            indices = trainval_info['val_list'])
+                                dataset_id = trainval_info['val_dataset_id'],
+                                transforms=get_transform(train=False),
+                                prefetch=parameters.USE_ON_MEMORY,
+                                use_cache=parameters.USE_CACHE,
+                                indices = trainval_info['val_list'])
         num_classes = dataset.num_class()
         
         if(len(dataset)<=0 or len(dataset_test)<=0):

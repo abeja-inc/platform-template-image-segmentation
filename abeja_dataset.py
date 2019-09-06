@@ -16,12 +16,14 @@ def getDatasetSize(dataset_id):
     
 class AbejaDataset(VisionDataset):
     def __init__(self, 
-                root,
-                dataset_id,
-                transform=None,
-                target_transform=None,
-                transforms=None,
-                indices=None):
+                 root,
+                 dataset_id,
+                 transform=None,
+                 target_transform=None,
+                 transforms=None,
+                 prefetch = False,
+                 use_cache = True,
+                 indices=None):
         
         super(AbejaDataset, self).__init__(root, transforms, transform, target_transform)
 
@@ -29,10 +31,11 @@ class AbejaDataset(VisionDataset):
         self.datalake_client = DatalakeClient()
         dataset = datasets_client.get_dataset(dataset_id)
         self.labels = dataset.props['categories'][0]['labels']
+        self.use_cache = use_cache
 
         self.datalake_files = list()
         idx = 0
-        for item in dataset.dataset_items.list(prefetch=False):
+        for item in dataset.dataset_items.list(prefetch=prefetch):
             if indices is not None and not idx in indices:
                 idx +=1
                 continue
@@ -58,12 +61,12 @@ class AbejaDataset(VisionDataset):
 
         # source image
         src_data = self.datalake_files[index][1]
-        src_content = src_data.get_content(cache=True)
+        src_content = src_data.get_content(cache=self.use_cache)
         src_file_like_object = io.BytesIO(src_content)
         src_img = Image.open(src_file_like_object).convert('RGB')
 
         # target image
-        content = datalake_file.get_content(cache=True)
+        content = datalake_file.get_content(cache=self.use_cache)
         file_like_object = io.BytesIO(content)
         target = Image.open(file_like_object).convert('P')
 
