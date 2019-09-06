@@ -271,7 +271,7 @@ def handler(context):
         print('Training time {}'.format(total_time_str))
         
         #save final model
-        torch.save(model.state_dict(), os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model.pth'))
+        torch.save(model.to('cpu').state_dict(), os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model.pth'))
         save_param = {'SEG_MODEL': parameters.SEG_MODEL,'NUM_CLASSES': num_classes}
         f = open(os.path.join(ABEJA_TRAINING_RESULT_DIR,'parameters.json'), 'w')
         json.dump(save_param,f)
