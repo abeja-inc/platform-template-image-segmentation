@@ -41,7 +41,9 @@ class AbejaDataset(VisionDataset):
                 continue
             # 'combined.data_uri' は (多分) category内の全てのlabelをひとつに纏めた画像
             # 'layers[].data_uri' は特定の 'label_id' のみの画像
-            data_uri = item.attributes['segmentation-image']['combined']['data_uri']
+            
+            data_uri = item.attributes['segmentation']['combined']['data_uri']
+            #data_uri = item.attributes['segmentation-image']['combined']['data_uri'] #old version
             m = re.search(r'datalake://(.+?)/(.+?)$', data_uri)
             src_data = item.source_data[0]
             self.datalake_files.append(((m.group(1),m.group(2)), src_data))
