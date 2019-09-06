@@ -159,17 +159,10 @@ def handler(context):
         raise Exception(message)
 
     try:
-        args = parse_args()
-        args.batch_size = parameters.BATCH_SIZE
-        args.epochs = parameters.EPOCHS
-        args.workers = parameters.NUM_DATA_LOAD_THREAD
-        args.output_dir = ABEJA_TRAINING_RESULT_DIR
-        args.model = parameters.SEG_MODEL
-
         if ABEJA_TRAINING_RESULT_DIR:
             utils.mkdir(ABEJA_TRAINING_RESULT_DIR)
 
-        utils.init_distributed_mode(args)
+        utils.init_distributed_mode(parameters)
 
         device_name = parameters.DEVICE if torch.cuda.is_available() else 'cpu'
         device = torch.device(device_name)
@@ -194,7 +187,7 @@ def handler(context):
         if(len(dataset)<=0 or len(dataset_test)<=0):
             raise Exception("Training or Test dataset size is too small. Please add more dataset or set EARLY_STOPPING_TEST_SIZE properly")
  
-        if args.distributed:
+        if parameters.DISTRIBUTED:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
             test_sampler = torch.utils.data.distributed.DistributedSampler(dataset_test)
         else:
@@ -217,7 +210,7 @@ def handler(context):
                         finetuning=parameters.FINE_TUNING)
         model.to(device)
 
-        if args.distributed:
+        if parameters.DISTRIBUTED:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
         if parameters.RESUME:
@@ -225,8 +218,8 @@ def handler(context):
             model.load_state_dict(checkpoint['model'])
 
         model_without_ddp = model
-        if args.distributed:
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+        if parameters.DISTRIBUTED:
+            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[parameters.GPU])
             model_without_ddp = model.module
 
         if parameters.TEST_ONLY:
@@ -252,11 +245,11 @@ def handler(context):
         print('num classes:', num_classes)
         print(len(dataset), 'train samples')
         print(len(dataset_test), 'test samples')
-        print(args)
+        print(parameters)
     
         start_time = time.time()
         for epoch in range(parameters.EPOCHS):
-            if args.distributed:
+            if parameters.DISTRIBUTED:
                 train_sampler.set_epoch(epoch)
             train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, parameters.PRINT_FREQ)
             confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
@@ -266,7 +259,7 @@ def handler(context):
                     'model': model_without_ddp.state_dict(),
                     'optimizer': optimizer.state_dict(),
                     'epoch': epoch,
-                    'args': args
+                    'parameters': parameters.parameters
                 },
                 os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model_{}.pth'.format(epoch)))
 
@@ -286,58 +279,11 @@ def handler(context):
         remove_files = glob.glob(rm_file_path)
         for f in remove_files:
             os.remove(f)
-        
-
                    
     except Exception as e:
         print(str(e))
         print(traceback.format_exc())
         raise e
-
-
-def parse_args():
-    import argparse
-    parser = argparse.ArgumentParser(description='PyTorch Segmentation Training')
-
-    parser.add_argument('--dataset', default='voc', help='dataset')
-    parser.add_argument('--model', default='fcn_resnet101', help='model')
-    parser.add_argument('--aux-loss', action='store_true', help='auxiliar loss')
-    #parser.add_argument('--device', default='cpu', help='device')
-    parser.add_argument('--device', default='cuda', help='device')
-    parser.add_argument('-b', '--batch-size', default=8, type=int)
-    parser.add_argument('--epochs', default=30, type=int, metavar='N',
-                        help='number of total epochs to run')
-
-    parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
-                        help='number of data loading workers (default: 16)')
-    parser.add_argument('--lr', default=0.01, type=float, help='initial learning rate')
-    parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-                        help='momentum')
-    parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
-                        metavar='W', help='weight decay (default: 1e-4)',
-                        dest='weight_decay')
-    parser.add_argument('--print-freq', default=10, type=int, help='print frequency')
-    parser.add_argument('--output-dir', default='.', help='path where to save')
-    parser.add_argument('--resume', default='', help='resume from checkpoint')
-    parser.add_argument(
-        "--test-only",
-        dest="test_only",
-        help="Only test the model",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--pretrained",
-        dest="pretrained",
-        help="Use pre-trained models from the modelzoo",
-        action="store_false",
-    )
-    # distributed training parameters
-    parser.add_argument('--world-size', default=1, type=int,
-                        help='number of distributed processes')
-    parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
-
-    args = parser.parse_args()
-    return args
 
 
 if __name__ == '__main__':

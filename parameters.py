@@ -29,11 +29,15 @@ RESUME = os.environ.get('RESUME', '')
 AUX_LOSS = bool(os.environ.get('AUX_LOSS','False').lower() == 'true')
 TEST_ONLY = bool(os.environ.get('TEST_ONLY', 'False').lower() == 'true')
 PRETRAINED = bool(os.environ.get('PRETRAINED', 'True').lower() == 'true')
-OUTPUT_DIR = os.environ.get('OUTPUT_DIR','.')
+#OUTPUT_DIR = os.environ.get('OUTPUT_DIR','.')
 
 # distributed training parameters
-WORLD_SIZE = int(os.environ.get("WORLD_SIZE", "1"))
+DISTRIBUTED = False
+WORLD_SIZE = 1
+RANK = 1
 DIST_URL=os.environ.get("DIST_URL", "env://")
+GPU = 0
+DIST_BACKEND = ''
 
 # For print
 parameters = {
@@ -55,7 +59,11 @@ parameters = {
     'PRINT_FREQ':PRINT_FREQ,
     'AUX_LOSS':AUX_LOSS,
     'TEST_ONLY':TEST_ONLY,
+    'DISTRIBUTED':DISTRIBUTED,
     'WORLD_SIZE':WORLD_SIZE,
-    'DIST_URL':DIST_URL
+    'DIST_URL':DIST_URL,
+    'RANK':RANK,
+    'GPU':GPU,
+    'DIST_BACKEND':DIST_BACKEND
 }
 
