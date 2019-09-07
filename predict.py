@@ -11,6 +11,7 @@ import numpy as np
 
 import json
 import base64
+import tempfile
 
 from abeja.datasets import Client as DatasetsClient
 import train
@@ -109,9 +110,10 @@ def handler(request, context):
         rgbimg = Image.open(img).convert('RGB')
 
         segmap = segmentation(rgbimg)
-        save_file = os.path.join(training_dir, 'tmp.png')
-        segmap.save(save_file)
-        b64 = base64.b64encode(open(save_file, 'rb').read()).decode('ascii')
+        with tempfile.NamedTemporaryFile(suffix=".png") as tf:
+            save_file = tf.name
+            segmap.save(save_file)
+            b64 = base64.b64encode(open(save_file, 'rb').read()).decode('ascii')
 
         return {
             'status_code': http.HTTPStatus.OK,
