@@ -29,7 +29,6 @@ FINE_TUNING = bool(os.environ.get('FINE_TUNING', 'False').lower() == 'true')
 PRINT_FREQ = int(os.environ.get('PRINT_FREQ', '10'))
 RESUME = os.environ.get('RESUME', '')
 AUX_LOSS = bool(os.environ.get('AUX_LOSS','False').lower() == 'true')
-TEST_ONLY = bool(os.environ.get('TEST_ONLY', 'False').lower() == 'true')
 PRETRAINED = bool(os.environ.get('PRETRAINED', 'True').lower() == 'true')
 
 # distributed training parameters
@@ -68,7 +67,6 @@ parameters = {
     'NUM_DATA_LOAD_THREAD': NUM_DATA_LOAD_THREAD,
     'PRINT_FREQ': PRINT_FREQ,
     'AUX_LOSS': AUX_LOSS,
-    'TEST_ONLY': TEST_ONLY,
     'DISTRIBUTED': DISTRIBUTED,
     'WORLD_SIZE': WORLD_SIZE,
     'DIST_URL': DIST_URL,

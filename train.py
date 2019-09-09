@@ -213,11 +213,6 @@ def handler(context):
             model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[parameters.GPU])
             model_without_ddp = model.module
 
-        if parameters.TEST_ONLY:
-            confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
-            print(confmat)
-            return
-
         params_to_optimize = [
             {"params": [p for p in model_without_ddp.backbone.parameters() if p.requires_grad]},
             {"params": [p for p in model_without_ddp.classifier.parameters() if p.requires_grad]},
