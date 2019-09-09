@@ -196,7 +196,7 @@ def handler(context):
 
         model = create_model(
             num_classes=num_classes,
-            model_name=parameters.SEG_MODEL,
+            model_name=parameters.SEGMENTATION_MODEL,
             pretrained=parameters.PRETRAINED,
             finetuning=parameters.FINE_TUNING)
         model.to(device)
@@ -260,7 +260,7 @@ def handler(context):
         
         # save final model
         torch.save(model.to('cpu').state_dict(), os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model.pth'))
-        save_param = {'SEG_MODEL': parameters.SEG_MODEL,'NUM_CLASSES': num_classes}
+        save_param = {'SEGMENTATION_MODEL': parameters.SEGMENTATION_MODEL,'NUM_CLASSES': num_classes}
         with open(os.path.join(ABEJA_TRAINING_RESULT_DIR,'parameters.json'), 'w') as f:
             json.dump(save_param,f)
         

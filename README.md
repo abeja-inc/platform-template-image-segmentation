@@ -32,7 +32,7 @@ This template uses transfer-learning from Fully Convolutional Network or DeepLab
 | USE_ON_MEMORY | bool | Load data on memory. If you use a big dataset, set it to `false`. Default `true` |
 | USE_CACHE | bool | Image cache. If you use a big dataset, set it to `false`. If `USE_ON_MEMORY=true`, then `USE_CACHE=true` automatically. Default `true` |
 | NUM_DATA_LOAD_THREAD | int | Number of thread image loads. MUST NOT over `BATCH_SIZE`. Default `1` |
-| SEG_MODEL | string | Segmentation Model "fcn_resnet101" or "deeplabv3_resnet101". Default `deeplabv3_resnet101` |
+| SEGMENTATION_MODEL | string | Segmentation Model "fcn_resnet101" or "deeplabv3_resnet101". Default `deeplabv3_resnet101` |
 | DEVICE | string | Device name to use: "cuda" or "cpu". Default `cuda`. |
 | FINE_TUNING | bool | If "False", only the last layer is trained. Default `False` |
 | PRETRAINED | bool | If "True", training starts from pretrained model by MS COCO. Default `True` |

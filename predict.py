@@ -40,7 +40,7 @@ def create_colormap(max_num):
 def load_model(training_dir, device):
     with open(os.path.join(training_dir,'parameters.json'), 'r') as f:
         jf = json.load(f)
-        seg_model = jf['SEG_MODEL']
+        seg_model = jf['SEGMENTATION_MODEL']
         num_classes = int(jf['NUM_CLASSES'])
     model = train.create_model(num_classes=num_classes, model_name=seg_model)
     model.load_state_dict(torch.load(os.path.join(training_dir,'model.pth')))
