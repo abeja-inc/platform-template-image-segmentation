@@ -21,21 +21,29 @@ This template uses transfer-learning from Fully Convolutional Network or DeepLab
 
 
 ## Parameters
-| env | type | description |
-| --- | --- | --- |
-| BATCH_SIZE | int | Batch size. Default `32`. |
-| EPOCHS | int | Epoch number. This template applies "Early stopping". Default `50`. |
-| LEARNING_RATE | float | Learning rate. Need to be from `0.0` to `1.0`. Default `0.01`. |
-| MOMENTUM | float | Weight of the previous update. Need to be from `0.0`. Default `0.9`. |
-| WEIGHT_DECAY | float | SGD parameter "decay". Need to be from `0.0`. Default `1e-4`. |
-| EARLY_STOPPING_TEST_SIZE | float | Test data size for "Early stopping". Need to be from `0.0` to `1.0`. Default `0.2`. |
-| USE_ON_MEMORY | bool | Load data on memory. If you use a big dataset, set it to `false`. Default `true` |
-| USE_CACHE | bool | Image cache. If you use a big dataset, set it to `false`. If `USE_ON_MEMORY=true`, then `USE_CACHE=true` automatically. Default `true` |
-| NUM_DATA_LOAD_THREAD | int | Number of thread image loads. MUST NOT over `BATCH_SIZE`. Default `1` |
-| SEGMENTATION_MODEL | string | Segmentation Model "fcn_resnet101" or "deeplabv3_resnet101". Default `deeplabv3_resnet101` |
-| DEVICE | string | Device name to use: "cuda" or "cpu". Default `cuda`. |
-| FINE_TUNING | bool | If "False", only the last layer is trained. Default `False` |
-| PRETRAINED | bool | If "True", training starts from pretrained model by MS COCO. Default `True` |
+| env | type | required | default | description |
+| --- | --- | --- | --- | --- |
+| BATCH_SIZE | int | true | 32 | Batch size. |
+| EPOCHS | int | true | 50 | Epoch number. This template applies "Early stopping". |
+| LEARNING_RATE | float | true | 0.01 | Learning rate. Need to be from `0.0` to `1.0`. |
+| MOMENTUM | float | true | 0.9 | Weight of the previous update. Need to be from `0.0`. |
+| WEIGHT_DECAY | float | true | 1e-4 | SGD parameter "decay". Need to be from `0.0`. |
+| USE_ON_MEMORY | bool | true | true | Load data on memory. If you use a big dataset, set it to `false`. |
+| USE_CACHE | bool | true | true | Image cache. If you use a big dataset, set it to `false`. If `USE_ON_MEMORY=true`, then `USE_CACHE=true` automatically. |
+| NUM_DATA_LOAD_THREAD | int | true | 1 | Number of thread image loads. MUST NOT over `BATCH_SIZE`. |
+| SEGMENTATION_MODEL | string | true | deeplabv3_resnet101 | Segmentation Model "fcn_resnet101" or "deeplabv3_resnet101". |
+| DEVICE | string | true | cuda | Device name to use: "cuda" or "cpu". |
+| FINE_TUNING | bool | true | false | If "False", only the last layer is trained. |
+| PRETRAINED | bool | true | true | If "True", training starts from pretrained model by MS COCO. |
+| PRINT_FREQ | int | true | 10 | Log frequency (epoch). |
+| EARLY_STOPPING_TEST_SIZE | float | false | 0.2 | Test data size for "Early stopping". Need to be from `0.0` to `1.0`. |
+| RESUME | str | false | None | Filepath. Set if you want to use pretrained your model. |
+| AUX_LOSS | bool | false | false | Set if you want to use aux loss. |
+| LOCAL_RANK | int | false | 0 | Name of the GPU to use |
+| SLURM_PROCID | int | false | None | SLURM PROCID. |
+| RANK | int | false | 1 | Rank of the current process. |
+| DIST_URL | string | false | env:// | URL specifying how to initialize the process group. |
+| WORLD_SIZE | int | false | 1 | Number of processes participating in the job. |
 
 
 ## Run on local
