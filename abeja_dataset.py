@@ -1,19 +1,24 @@
 import re
 from abeja.datasets import Client as DatasetsClient
 from abeja.datalake import Client as DatalakeClient
-import os
-import sys
-import collections
 import io
 from PIL import Image
 from torchvision.datasets.vision import VisionDataset
 
 
-def getDatasetSize(dataset_id):
+def get_dataset_size(dataset_id):
         datasets_client = DatasetsClient()
         dataset = datasets_client.get_dataset(dataset_id)
         return dataset.total_count
-    
+
+
+class DataLakeObj:
+    def __init__(self, channel_id: str, file_id: str, src_data):
+        self.channel_id = channel_id
+        self.file_id = file_id
+        self.src_data = src_data
+
+
 class AbejaDataset(VisionDataset):
     def __init__(self, 
                  root,
@@ -21,8 +26,8 @@ class AbejaDataset(VisionDataset):
                  transform=None,
                  target_transform=None,
                  transforms=None,
-                 prefetch = False,
-                 use_cache = True,
+                 prefetch=False,
+                 use_cache=True,
                  indices=None):
         
         super(AbejaDataset, self).__init__(root, transforms, transform, target_transform)
@@ -39,16 +44,12 @@ class AbejaDataset(VisionDataset):
             if indices is not None and not idx in indices:
                 idx +=1
                 continue
-            # 'combined.data_uri' は (多分) category内の全てのlabelをひとつに纏めた画像
-            # 'layers[].data_uri' は特定の 'label_id' のみの画像
-            
+
             data_uri = item.attributes['segmentation']['combined']['data_uri']
-            #data_uri = item.attributes['segmentation-image']['combined']['data_uri'] #old version
             m = re.search(r'datalake://(.+?)/(.+?)$', data_uri)
             src_data = item.source_data[0]
-            self.datalake_files.append(((m.group(1),m.group(2)), src_data))
+            self.datalake_files.append(DataLakeObj(m.group(1), m.group(2), src_data))
             idx += 1
-
 
     def __getitem__(self, index):
         """
@@ -58,11 +59,11 @@ class AbejaDataset(VisionDataset):
         Returns:
             tuple: (image, target) where target is the image segmentation.
         """
-        channel = self.datalake_client.get_channel(self.datalake_files[index][0][0])
-        datalake_file = channel.get_file(self.datalake_files[index][0][1])
+        channel = self.datalake_client.get_channel(self.datalake_files[index].channel_id)
+        datalake_file = channel.get_file(self.datalake_files[index].file_id)
 
         # source image
-        src_data = self.datalake_files[index][1]
+        src_data = self.datalake_files[index].src_data
         src_content = src_data.get_content(cache=self.use_cache)
         src_file_like_object = io.BytesIO(src_content)
         src_img = Image.open(src_file_like_object).convert('RGB')
@@ -76,7 +77,6 @@ class AbejaDataset(VisionDataset):
             src_img, target = self.transforms(src_img, target)
 
         return src_img, target
-
 
     def __len__(self):
         return len(self.datalake_files)
