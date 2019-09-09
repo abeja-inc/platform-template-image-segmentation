@@ -275,24 +275,11 @@ def save_on_master(*args, **kwargs):
 
 
 def init_distributed_mode(args):
-    if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
-        args.RANK = int(os.environ["RANK"])
-        args.WORLD_SIZE = int(os.environ['WORLD_SIZE'])
-        args.GPU = int(os.environ['LOCAL_RANK'])
-    elif 'SLURM_PROCID' in os.environ:
-        args.RANK = int(os.environ['SLURM_PROCID'])
-        args.GPU = args.rank % torch.cuda.device_count()
-    elif hasattr(args, "rank"):
-        pass
-    else:
+    if not args.DISTRIBUTED:
         print('Not using distributed mode')
-        args.DISTRIBUTED = False
         return
 
-    args.DISTRIBUTED = True
-
     torch.cuda.set_device(args.GPU)
-    args.DIST_BACKEND = 'nccl'
     print('| distributed init (rank {}): {}'.format(
         args.RANK, args.DIST_URL), flush=True)
     torch.distributed.init_process_group(backend=args.DIST_BACKEND, init_method=args.DIST_URL,

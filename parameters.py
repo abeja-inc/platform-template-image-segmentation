@@ -4,6 +4,8 @@
 
 import os
 
+import torch
+
 
 # Train params
 BATCH_SIZE = int(os.environ.get('BATCH_SIZE', '32'))
@@ -29,15 +31,25 @@ RESUME = os.environ.get('RESUME', '')
 AUX_LOSS = bool(os.environ.get('AUX_LOSS','False').lower() == 'true')
 TEST_ONLY = bool(os.environ.get('TEST_ONLY', 'False').lower() == 'true')
 PRETRAINED = bool(os.environ.get('PRETRAINED', 'True').lower() == 'true')
-#OUTPUT_DIR = os.environ.get('OUTPUT_DIR','.')
 
 # distributed training parameters
-DISTRIBUTED = False
+DISTRIBUTED = True
 WORLD_SIZE = 1
 RANK = 1
 DIST_URL=os.environ.get("DIST_URL", "env://")
 GPU = 0
 DIST_BACKEND = ''
+if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
+    RANK = int(os.environ["RANK"])
+    WORLD_SIZE = int(os.environ['WORLD_SIZE'])
+    GPU = int(os.environ['LOCAL_RANK'])
+    DIST_BACKEND = 'nccl'
+elif 'SLURM_PROCID' in os.environ:
+    RANK = int(os.environ['SLURM_PROCID'])
+    GPU = RANK % torch.cuda.device_count()
+    DIST_BACKEND = 'nccl'
+else:
+    DISTRIBUTED = False
 
 # For print
 parameters = {
@@ -46,8 +58,6 @@ parameters = {
     'EARLY_STOPPING_TEST_SIZE': EARLY_STOPPING_TEST_SIZE,
     'LEARNING_RATE': LEARNING_RATE,
     'MOMENTUM': MOMENTUM,
-    'USE_CACHE': USE_CACHE,
-    'USE_ON_MEMORY': USE_ON_MEMORY,
     'SEG_MODEL': SEG_MODEL,
     'DEVICE': DEVICE,
     'FINE_TUNING':FINE_TUNING,
