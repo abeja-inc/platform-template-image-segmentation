@@ -12,47 +12,33 @@ import json
 import transforms as T
 import utils
 
-from abeja_dataset import AbejaDataset, getDatasetSize
+from abeja_dataset import AbejaDataset, get_dataset_size
 import parameters
 
 ABEJA_TRAINING_RESULT_DIR = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 log_path = os.path.join(ABEJA_TRAINING_RESULT_DIR, 'logs')
 
-"""
-def get_dataset(name, image_set, transform):
-    def sbd(*args, **kwargs):
-        return torchvision.datasets.SBDataset(*args, mode='segmentation', **kwargs)
-    paths = {
-        "voc": ('/root/Datasets/VOC2012/', torchvision.datasets.VOCSegmentation, 21),
-        "voc_aug": ('/datasets01/SBDD/072318/', sbd, 21),
-        "coco": ('/datasets01/COCO/022719/', get_coco, 21)
-    }
-    p, ds_fn, num_classes = paths[name]
 
-    ds = ds_fn(p, image_set=image_set, transforms=transform)
-    return ds, num_classes
-"""
-
-
-def create_model(num_classes, model_name, pretrained = True, finetuning = False):
+def create_model(num_classes, model_name, pretrained=True, finetuning=False):
     """
     Create ML Network.
     :param num_classes: Number of classes.
     :param model_name: deeplabv3_resnet101 or fcn_resnet101.
+    :param pretrained: if true, use pretrained model
     :param finetuning: if true, all paramters are trainable
     :return model: ML Network.
     """
-    if((model_name!='deeplabv3_resnet101') and (model_name!='fcn_resnet101')):
+    if model_name != 'deeplabv3_resnet101' and model_name != 'fcn_resnet101':
         raise ValueError(model_name + " is not supported")
     
-    model = torchvision.models.segmentation.__dict__[model_name](pretrained = pretrained)
-    if(model_name=='deeplabv3_resnet101'):
+    model = torchvision.models.segmentation.__dict__[model_name](pretrained=pretrained)
+    if model_name == 'deeplabv3_resnet101':
         model.classifier[4] = nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
     else:
         model.classifier[4] = nn.Conv2d(512, num_classes, kernel_size=(1, 1), stride=(1, 1))
     model.aux_classifier[4] = nn.Conv2d(256, num_classes, kernel_size=(1, 1), stride=(1, 1))
 
-    if(not finetuning):
+    if not finetuning:
         for param in model.parameters():
             param.requires_grad = False
         for param in model.classifier.parameters():
@@ -63,14 +49,13 @@ def create_model(num_classes, model_name, pretrained = True, finetuning = False)
     return model
 
 
-
 def get_transform(train):
     base_size = 520
     crop_size = 480
 
     min_size = int((0.5 if train else 1.0) * base_size)
     max_size = int((2.0 if train else 1.0) * base_size)
-    transforms = []
+    transforms = list()
     transforms.append(T.RandomResize(min_size, max_size))
     if train:
         transforms.append(T.RandomHorizontalFlip(0.5))
@@ -88,23 +73,26 @@ def get_trainval_dataset_index(dataset_list, early_stopping_test_size):
     train_list = None
     val_list = None
     for name, idx in dataset_list.items():
-        if(name=="val"):
+        if name == "val":
             val_dataset_id = idx
         elif train_dataset_id is None:
             train_dataset_id = idx
     
-    if(val_dataset_id is None):
+    if val_dataset_id is None:
         val_dataset_id = train_dataset_id
-        dataset_size = getDatasetSize(train_dataset_id)
+        dataset_size = get_dataset_size(train_dataset_id)
         test_size = int(dataset_size * early_stopping_test_size)
         train_list = range(test_size,dataset_size)
         val_list = range(0,test_size)
      
-    return {'train_dataset_id': train_dataset_id, 'val_dataset_id': val_dataset_id, 'train_list': train_list, 'val_list': val_list}
+    return {
+        'train_dataset_id': train_dataset_id, 'val_dataset_id': val_dataset_id,
+        'train_list': train_list, 'val_list': val_list
+    }
     
 
 def criterion(inputs, target):
-    losses = {}
+    losses = dict()
     for name, x in inputs.items():
         losses[name] = nn.functional.cross_entropy(x, target, ignore_index=255)
 
@@ -167,25 +155,27 @@ def handler(context):
         device_name = parameters.DEVICE if torch.cuda.is_available() else 'cpu'
         device = torch.device(device_name)
 
-        
         trainval_info = get_trainval_dataset_index(context['datasets'], parameters.EARLY_STOPPING_TEST_SIZE)
         
-        dataset =  AbejaDataset(root = None,
-                                dataset_id = trainval_info['train_dataset_id'],
-                                transforms=get_transform(train=True),
-                                prefetch=parameters.USE_ON_MEMORY,
-                                use_cache=parameters.USE_CACHE,
-                                indices = trainval_info['train_list'])
-        dataset_test =  AbejaDataset(root = None,
-                                dataset_id = trainval_info['val_dataset_id'],
-                                transforms=get_transform(train=False),
-                                prefetch=parameters.USE_ON_MEMORY,
-                                use_cache=parameters.USE_CACHE,
-                                indices = trainval_info['val_list'])
+        dataset = AbejaDataset(
+            root=None, dataset_id=trainval_info['train_dataset_id'],
+            transforms=get_transform(train=True),
+            prefetch=parameters.USE_ON_MEMORY,
+            use_cache=parameters.USE_CACHE,
+            indices = trainval_info['train_list'])
+        dataset_test = AbejaDataset(
+            root=None, dataset_id=trainval_info['val_dataset_id'],
+            transforms=get_transform(train=False),
+            prefetch=parameters.USE_ON_MEMORY,
+            use_cache=parameters.USE_CACHE,
+            indices = trainval_info['val_list'])
         num_classes = dataset.num_class()
         
-        if(len(dataset)<=0 or len(dataset_test)<=0):
-            raise Exception("Training or Test dataset size is too small. Please add more dataset or set EARLY_STOPPING_TEST_SIZE properly")
+        if len(dataset) <= 0 or len(dataset_test) <= 0:
+            raise Exception(
+                "Training or Test dataset size is too small. "
+                "Please add more dataset or set EARLY_STOPPING_TEST_SIZE properly"
+            )
  
         if parameters.DISTRIBUTED:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
@@ -204,10 +194,11 @@ def handler(context):
             sampler=test_sampler, num_workers=parameters.NUM_DATA_LOAD_THREAD,
             collate_fn=utils.collate_fn)
 
-        model = create_model(num_classes=num_classes, 
-                        model_name=parameters.SEG_MODEL, 
-                        pretrained=parameters.PRETRAINED, 
-                        finetuning=parameters.FINE_TUNING)
+        model = create_model(
+            num_classes=num_classes,
+            model_name=parameters.SEG_MODEL,
+            pretrained=parameters.PRETRAINED,
+            finetuning=parameters.FINE_TUNING)
         model.to(device)
 
         if parameters.DISTRIBUTED:
@@ -267,13 +258,13 @@ def handler(context):
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print('Training time {}'.format(total_time_str))
         
-        #save final model
+        # save final model
         torch.save(model.to('cpu').state_dict(), os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model.pth'))
         save_param = {'SEG_MODEL': parameters.SEG_MODEL,'NUM_CLASSES': num_classes}
         with open(os.path.join(ABEJA_TRAINING_RESULT_DIR,'parameters.json'), 'w') as f:
             json.dump(save_param,f)
         
-        #remove checkpoints files
+        # remove checkpoints files
         print('removing checkpoint files')
         rm_file_path = os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model_*.pth')
         remove_files = glob.glob(rm_file_path)

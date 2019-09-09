@@ -4,7 +4,6 @@ import traceback
 from io import BytesIO
 
 import torch
-from torchvision import models
 import torchvision.transforms as T
 from PIL import Image
 import numpy as np
@@ -21,6 +20,7 @@ import parameters
 def bitget(number, pos):
     return (number >> pos) & 1
 
+
 def create_colormap(max_num):
     colormap = {}
     for i in range(0,max_num):
@@ -36,9 +36,8 @@ def create_colormap(max_num):
         colormap[i] = [r,g,b]
     return colormap
 
+
 def load_model(training_dir, device):
-    seg_model = ''
-    num_classes = 0
     with open(os.path.join(training_dir,'parameters.json'), 'r') as f:
         jf = json.load(f)
         seg_model = jf['SEG_MODEL']
@@ -47,6 +46,7 @@ def load_model(training_dir, device):
     model.load_state_dict(torch.load(os.path.join(training_dir,'model.pth')))
     model.to(device)
     return model.eval(), num_classes
+
 
 def get_dataset_properties(dataset_ids):
     datasets_client = DatasetsClient()
@@ -57,7 +57,7 @@ def get_dataset_properties(dataset_ids):
         break
     return props
 
-# Define the helper function
+
 def decode_segmap(out, label_colors):
     om = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
 
@@ -73,7 +73,8 @@ def decode_segmap(out, label_colors):
     
     rgb = np.stack([r, g, b], axis=2)
     return rgb
-   
+
+
 training_dir = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 dataset_ids = os.environ.get('TRAINING_JOB_DATASET_IDS', '').split(',')
 device_name = parameters.DEVICE if torch.cuda.is_available() else 'cpu'
@@ -82,6 +83,7 @@ device = torch.device(device_name)
 model, num_classes = load_model(training_dir, device)
 color_map = create_colormap(num_classes)
 props = get_dataset_properties(dataset_ids)
+
 
 def segmentation(img):
     trf = T.Compose([T.Resize(520), 
@@ -92,6 +94,7 @@ def segmentation(img):
     output = model(inp)['out']
     segmap = decode_segmap(output, color_map)
     return Image.fromarray(segmap)
+
 
 def handler(request, context):
     print('Start predict handler.')
