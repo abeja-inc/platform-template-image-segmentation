@@ -92,6 +92,7 @@ def segmentation(img):
                                 std = [0.229, 0.224, 0.225])])
     inp = trf(img).unsqueeze(0).to(device)
     output = model(inp)['out']
+    print(output)
     segmap = decode_segmap(output, color_map)
     return Image.fromarray(segmap)
 

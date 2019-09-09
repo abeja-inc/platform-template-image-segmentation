@@ -5,6 +5,7 @@ import traceback
 
 import torch
 import torch.utils.data
+import torch.nn.functional
 from torch import nn
 import torchvision
 
@@ -231,7 +232,7 @@ def handler(context):
         print('num classes:', num_classes)
         print(len(dataset), 'train samples')
         print(len(dataset_test), 'test samples')
-        print(parameters)
+        print(parameters.parameters)
     
         start_time = time.time()
         for epoch in range(parameters.EPOCHS):
