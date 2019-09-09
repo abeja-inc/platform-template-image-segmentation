@@ -1,20 +1,26 @@
 import datetime
+import json
 import os, glob
+import random
 import time
 import traceback
 
+import numpy as np
 import torch
 import torch.utils.data
 import torch.nn.functional
 from torch import nn
 import torchvision
 
-import json
 import transforms as T
-import utils
-
-from abeja_dataset import AbejaDataset, get_dataset_size
 import parameters
+import utils
+from abeja_dataset import AbejaDataset, get_dataset_size
+if parameters.RANDOM_SEED is not None:
+    torch.manual_seed(parameters.RANDOM_SEED)
+    np.random.seed(parameters.RANDOM_SEED)
+    random.seed(parameters.RANDOM_SEED)
+
 
 ABEJA_TRAINING_RESULT_DIR = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 log_path = os.path.join(ABEJA_TRAINING_RESULT_DIR, 'logs')
