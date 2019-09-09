@@ -19,8 +19,8 @@ class AbejaDataset(VisionDataset):
                  transform=None,
                  target_transform=None,
                  transforms=None,
-                 prefetch = False,
-                 use_cache = True,
+                 prefetch=False,
+                 use_cache=True,
                  indices=None):
         
         super(AbejaDataset, self).__init__(root, transforms, transform, target_transform)
