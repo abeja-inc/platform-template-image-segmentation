@@ -10,20 +10,26 @@ import torch
 import torch.utils.data
 import torch.nn.functional
 from torch import nn
+from torch.utils.tensorboard import SummaryWriter
 import torchvision
 
 import transforms as T
 import parameters
 import utils
 from abeja_dataset import AbejaDataset, get_dataset_size
+from callbacks import Statistics
+
+
 if parameters.RANDOM_SEED is not None:
     torch.manual_seed(parameters.RANDOM_SEED)
     np.random.seed(parameters.RANDOM_SEED)
     random.seed(parameters.RANDOM_SEED)
 
+statistics = Statistics(parameters.EPOCHS)
 
 ABEJA_TRAINING_RESULT_DIR = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 log_path = os.path.join(ABEJA_TRAINING_RESULT_DIR, 'logs')
+writer = SummaryWriter(log_dir=log_path)
 
 
 def create_model(num_classes, model_name, pretrained=True, finetuning=False):
@@ -109,7 +115,8 @@ def criterion(inputs, target):
     return losses['out'] + 0.5 * losses['aux']
 
 
-def evaluate(model, data_loader, device, num_classes):
+def evaluate(model, criterion, data_loader, device, num_classes):
+    total_loss = 0
     model.eval()
     confmat = utils.ConfusionMatrix(num_classes)
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -118,16 +125,19 @@ def evaluate(model, data_loader, device, num_classes):
         for image, target in metric_logger.log_every(data_loader, 100, header):
             image, target = image.to(device), target.to(device)
             output = model(image)
+            loss = criterion(output, target)
+            total_loss += loss.item()
             output = output['out']
 
             confmat.update(target.flatten(), output.argmax(1).flatten())
 
         confmat.reduce_from_all_processes()
 
-    return confmat
+    return confmat, total_loss
 
 
 def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq):
+    total_loss = 0
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value}'))
@@ -136,6 +146,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
         image, target = image.to(device), target.to(device)
         output = model(image)
         loss = criterion(output, target)
+        total_loss += loss.item()
 
         optimizer.zero_grad()
         loss.backward()
@@ -144,6 +155,8 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
         lr_scheduler.step()
 
         metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
+
+    return total_loss
 
 
 def handler(context):
@@ -246,20 +259,38 @@ def handler(context):
             json.dump(save_param,f)
 
         start_time = time.time()
+        t_epoch_start = time.time()
         for epoch in range(parameters.EPOCHS):
             if parameters.DISTRIBUTED:
                 train_sampler.set_epoch(epoch)
-            train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, parameters.PRINT_FREQ)
-            confmat = evaluate(model, data_loader_test, device=device, num_classes=num_classes)
-            print(confmat)
-            utils.save_on_master(
-                {
-                    'model': model_without_ddp.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'epoch': epoch,
-                    'parameters': parameters.parameters
-                },
-                os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model_{}.pth'.format(epoch)))
+            epoch_train_loss = train_one_epoch(
+                model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, parameters.PRINT_FREQ)
+            confmat, epoch_val_loss = evaluate(
+                model, criterion, data_loader_test, device=device, num_classes=num_classes)
+
+            latest_epoch_train_loss = epoch_train_loss / len(data_loader)
+            latest_epoch_val_loss = epoch_val_loss / len(data_loader_test)
+            t_epoch_finish = time.time()
+            print('-------------')
+            print('epoch {} || Epoch_TRAIN_Loss:{:.4f} || Epoch_VAL_Loss:{:.4f}'.format(
+                epoch + 1, latest_epoch_train_loss, latest_epoch_val_loss))
+            print('confmat', confmat)
+            print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
+            t_epoch_start = time.time()
+
+            statistics(epoch + 1, latest_epoch_train_loss, None, latest_epoch_val_loss, None)
+
+            writer.add_scalar('main/loss', latest_epoch_train_loss, epoch + 1)
+            if (epoch + 1) % 10 == 0:
+                writer.add_scalar('test/loss', latest_epoch_val_loss, epoch + 1)
+                utils.save_on_master(
+                    {
+                        'model': model_without_ddp.state_dict(),
+                        'optimizer': optimizer.state_dict(),
+                        'epoch': epoch + 1,
+                        'parameters': parameters.parameters
+                    },
+                    os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model_{}.pth'.format(epoch)))
 
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
