@@ -36,6 +36,7 @@ This template uses transfer-learning from Fully Convolutional Network or DeepLab
 | FINE_TUNING | bool | true | false | If "False", only the last layer is trained. |
 | PRETRAINED | bool | true | true | If "True", training starts from pretrained model by MS COCO. |
 | PRINT_FREQ | int | true | 10 | Log frequency (epoch). |
+| RANDOM_SEED | int | false | 42 | Random seed. |
 | EARLY_STOPPING_TEST_SIZE | float | false | 0.2 | Test data size for "Early stopping". Need to be from `0.0` to `1.0`. |
 | RESUME | str | false | None | Filepath. Set if you want to use pretrained your model. |
 | AUX_LOSS | bool | false | false | Set if you want to use aux loss. |
