@@ -40,6 +40,12 @@ This template uses transfer-learning from Fully Convolutional Network or DeepLab
 | EARLY_STOPPING_TEST_SIZE | float | false | 0.2 | Test data size for "Early stopping". Need to be from `0.0` to `1.0`. |
 | RESUME | str | false | None | Filepath. Set if you want to use pretrained your model. |
 | AUX_LOSS | bool | false | false | Set if you want to use aux loss. |
+
+### TBD
+Distributed mode is being developed.
+
+| env | type | required | default | description |
+| --- | --- | --- | --- | --- |
 | LOCAL_RANK | int | false | 0 | Name of the GPU to use |
 | SLURM_PROCID | int | false | None | SLURM PROCID. |
 | RANK | int | false | 1 | Rank of the current process. |
