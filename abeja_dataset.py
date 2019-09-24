@@ -45,7 +45,7 @@ class AbejaDataset(VisionDataset):
                 idx +=1
                 continue
 
-            data_uri = item.attributes['segmentation']['combined']['data_uri']
+            data_uri = item.attributes['segmentation-image']['combined']['data_uri']
             m = re.search(r'datalake://(.+?)/(.+?)$', data_uri)
             src_data = item.source_data[0]
             self.datalake_files.append(DataLakeObj(m.group(1), m.group(2), src_data))
