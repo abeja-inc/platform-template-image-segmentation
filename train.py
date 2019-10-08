@@ -95,8 +95,8 @@ def get_trainval_dataset_index(dataset_list, early_stopping_test_size):
         val_dataset_id = train_dataset_id
         dataset_size = get_dataset_size(train_dataset_id)
         test_size = int(dataset_size * early_stopping_test_size)
-        train_list = range(test_size,dataset_size)
-        val_list = range(0,test_size)
+        train_list = range(test_size, dataset_size)
+        val_list = range(0, test_size)
      
     return {
         'train_dataset_id': train_dataset_id, 'val_dataset_id': val_dataset_id,
@@ -176,7 +176,7 @@ def handler(context):
         device = torch.device(device_name)
 
         trainval_info = get_trainval_dataset_index(context['datasets'], parameters.EARLY_STOPPING_TEST_SIZE)
-        
+
         dataset = AbejaDataset(
             root=None, dataset_id=trainval_info['train_dataset_id'],
             transforms=get_transform(train=True),
