@@ -107,7 +107,7 @@ def get_trainval_dataset_index(dataset_list, early_stopping_test_size):
 def criterion(inputs, target):
     losses = dict()
     for name, x in inputs.items():
-        losses[name] = nn.functional.cross_entropy(x, target, ignore_index=255)
+        losses[name] = nn.functional.cross_entropy(x, target, ignore_index=0)
 
     if len(losses) == 1:
         return losses['out']
