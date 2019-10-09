@@ -116,7 +116,7 @@ def criterion(inputs, target):
 
 
 def evaluate(model, criterion, data_loader, device, num_classes):
-    total_loss = 0
+    epoch_loss = list()
     model.eval()
     confmat = utils.ConfusionMatrix(num_classes)
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -126,18 +126,19 @@ def evaluate(model, criterion, data_loader, device, num_classes):
             image, target = image.to(device), target.to(device)
             output = model(image)
             loss = criterion(output, target)
-            total_loss += loss.item()
+            epoch_loss.append(loss.item())
             output = output['out']
 
             confmat.update(target.flatten(), output.argmax(1).flatten())
 
         confmat.reduce_from_all_processes()
 
-    return confmat, total_loss
+    return confmat, sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
 
 
 def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq):
-    total_loss = 0
+    lr_scheduler.step(epoch)
+    epoch_loss = list()
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value}'))
@@ -146,17 +147,15 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
         image, target = image.to(device), target.to(device)
         output = model(image)
         loss = criterion(output, target)
-        total_loss += loss.item()
+        epoch_loss.append(loss.item())
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        lr_scheduler.step()
-
         metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
 
-    return total_loss
+    return sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
 
 
 def handler(context):
@@ -246,7 +245,7 @@ def handler(context):
 
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
-            lambda x: (1 - x / (len(data_loader) * parameters.EPOCHS)) ** 0.9)
+            lambda epoch: pow((1 - (epoch+1) / parameters.EPOCHS), 0.9))
 
         print('num classes:', num_classes)
         print(len(dataset), 'train samples')
@@ -263,26 +262,24 @@ def handler(context):
         for epoch in range(parameters.EPOCHS):
             if parameters.DISTRIBUTED:
                 train_sampler.set_epoch(epoch)
-            epoch_train_loss = train_one_epoch(
+            average_epoch_train_loss = train_one_epoch(
                 model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, parameters.PRINT_FREQ)
-            confmat, epoch_val_loss = evaluate(
+            confmat, average_epoch_val_loss = evaluate(
                 model, criterion, data_loader_test, device=device, num_classes=num_classes)
 
-            latest_epoch_train_loss = epoch_train_loss / len(data_loader)
-            latest_epoch_val_loss = epoch_val_loss / len(data_loader_test)
             t_epoch_finish = time.time()
             print('-------------')
             print('epoch {} || Epoch_TRAIN_Loss:{:.4f} || Epoch_VAL_Loss:{:.4f}'.format(
-                epoch + 1, latest_epoch_train_loss, latest_epoch_val_loss))
+                epoch + 1, average_epoch_train_loss, average_epoch_val_loss))
             print('confmat', confmat)
             print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
             t_epoch_start = time.time()
 
-            statistics(epoch + 1, latest_epoch_train_loss, None, latest_epoch_val_loss, None)
+            statistics(epoch + 1, average_epoch_train_loss, None, average_epoch_val_loss, None)
 
-            writer.add_scalar('main/loss', latest_epoch_train_loss, epoch + 1)
+            writer.add_scalar('main/loss', average_epoch_train_loss, epoch + 1)
             if (epoch + 1) % 10 == 0:
-                writer.add_scalar('test/loss', latest_epoch_val_loss, epoch + 1)
+                writer.add_scalar('test/loss', average_epoch_val_loss, epoch + 1)
                 utils.save_on_master(
                     {
                         'model': model_without_ddp.state_dict(),
