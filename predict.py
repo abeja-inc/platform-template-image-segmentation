@@ -45,7 +45,7 @@ def get_dataset_labels(dataset_ids):
 
 def decode_segmap(out, label_colors):
     om = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
-    print(om)
+    print('Argmax prediction result: ', om)
 
     r = np.zeros_like(om).astype(np.uint8)
     g = np.zeros_like(om).astype(np.uint8)
@@ -78,7 +78,7 @@ def segmentation(img):
                                 std=[0.229, 0.224, 0.225])])
     inp = trf(img).unsqueeze(0).to(device)
     output = model(inp)['out']
-    print(output)
+    print('Predict result: ', output)
     segmap = decode_segmap(output, color_map)
     return Image.fromarray(segmap)
 
