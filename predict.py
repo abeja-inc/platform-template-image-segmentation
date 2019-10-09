@@ -50,7 +50,7 @@ def decode_segmap(out, label_colors):
     g = np.zeros_like(om).astype(np.uint8)
     b = np.zeros_like(om).astype(np.uint8)
   
-    for l,c in label_colors.items():
+    for l, c in enumerate(label_colors):
         idx = om == l
         r[idx] = c[0]
         g[idx] = c[1]

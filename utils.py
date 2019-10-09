@@ -211,18 +211,20 @@ def hex2rgb(hex: str):
     return tuple(int(hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
 
 
-def create_colormap(labels: list) -> dict:
-    colormap = {0: (0, 0, 0)}
-    for i, label in enumerate(labels):
-        colormap[i+1] = hex2rgb(label['color'])
+def create_colormap(labels: list) -> list:
+    colormap = [(0, 0, 0)]
+    for label in labels:
+        colormap.append(hex2rgb(label['color']))
     return colormap
 
 
 def create_palette(labels: dict):
-    palette = [[[0, 0, 0]]]
+    palimg = Image.new('P', (16, 16))
+    palette = [0, 0, 0]
     for label in labels:
-        palette.append([list(hex2rgb(label['color']))])
-    return Image.fromarray(np.uint8(np.array(palette))).convert("P")
+        palette.extend(list(hex2rgb(label['color'])))
+    palimg.putpalette(palette)
+    return palimg
 
 
 def cat_list(images, fill_value=0):
