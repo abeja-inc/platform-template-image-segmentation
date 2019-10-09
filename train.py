@@ -95,8 +95,8 @@ def get_trainval_dataset_index(dataset_list, early_stopping_test_size):
         val_dataset_id = train_dataset_id
         dataset_size = get_dataset_size(train_dataset_id)
         test_size = int(dataset_size * early_stopping_test_size)
-        train_list = range(test_size,dataset_size)
-        val_list = range(0,test_size)
+        train_list = range(test_size, dataset_size)
+        val_list = range(0, test_size)
      
     return {
         'train_dataset_id': train_dataset_id, 'val_dataset_id': val_dataset_id,
@@ -116,7 +116,7 @@ def criterion(inputs, target):
 
 
 def evaluate(model, criterion, data_loader, device, num_classes):
-    total_loss = 0
+    epoch_loss = list()
     model.eval()
     confmat = utils.ConfusionMatrix(num_classes)
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -126,19 +126,24 @@ def evaluate(model, criterion, data_loader, device, num_classes):
             image, target = image.to(device), target.to(device)
             output = model(image)
             loss = criterion(output, target)
-            total_loss += loss.item()
+            epoch_loss.append(loss.item())
             output = output['out']
 
             confmat.update(target.flatten(), output.argmax(1).flatten())
 
         confmat.reduce_from_all_processes()
 
-    return confmat, total_loss
+    print('eval confmat', confmat)
+    acc_global, _, _ = confmat.compute()
+    epoch_acc = acc_global.item()
+
+    return epoch_acc, sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq):
-    total_loss = 0
+def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq, num_classes):
+    epoch_loss = list()
     model.train()
+    confmat = utils.ConfusionMatrix(num_classes)
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value}'))
     header = 'Epoch: [{}]'.format(epoch)
@@ -146,7 +151,8 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
         image, target = image.to(device), target.to(device)
         output = model(image)
         loss = criterion(output, target)
-        total_loss += loss.item()
+        epoch_loss.append(loss.item())
+        confmat.update(target.flatten(), output['out'].argmax(1).flatten())
 
         optimizer.zero_grad()
         loss.backward()
@@ -156,7 +162,11 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
 
         metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
 
-    return total_loss
+    confmat.reduce_from_all_processes()
+    acc_global, _, _ = confmat.compute()
+    epoch_acc = acc_global.item()
+
+    return epoch_acc, sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
 
 
 def handler(context):
@@ -176,7 +186,7 @@ def handler(context):
         device = torch.device(device_name)
 
         trainval_info = get_trainval_dataset_index(context['datasets'], parameters.EARLY_STOPPING_TEST_SIZE)
-        
+
         dataset = AbejaDataset(
             root=None, dataset_id=trainval_info['train_dataset_id'],
             transforms=get_transform(train=True),
@@ -196,6 +206,7 @@ def handler(context):
                 "Training or Test dataset size is too small. "
                 "Please add more dataset or set EARLY_STOPPING_TEST_SIZE properly"
             )
+        drop_last = False if len(dataset) < parameters.BATCH_SIZE else True
  
         if parameters.DISTRIBUTED:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
@@ -207,7 +218,7 @@ def handler(context):
         data_loader = torch.utils.data.DataLoader(
             dataset, batch_size=parameters.BATCH_SIZE,
             sampler=train_sampler, num_workers=parameters.NUM_DATA_LOAD_THREAD,
-            collate_fn=utils.collate_fn, drop_last=True)
+            collate_fn=utils.collate_fn, drop_last=drop_last)
 
         data_loader_test = torch.utils.data.DataLoader(
             dataset_test, batch_size=1,
@@ -263,26 +274,29 @@ def handler(context):
         for epoch in range(parameters.EPOCHS):
             if parameters.DISTRIBUTED:
                 train_sampler.set_epoch(epoch)
-            epoch_train_loss = train_one_epoch(
-                model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, parameters.PRINT_FREQ)
-            confmat, epoch_val_loss = evaluate(
+            average_epoch_train_acc, average_epoch_train_loss = train_one_epoch(
+                model, criterion, optimizer, data_loader, lr_scheduler,
+                device, epoch, parameters.PRINT_FREQ, num_classes)
+            average_epoch_val_acc, average_epoch_val_loss = evaluate(
                 model, criterion, data_loader_test, device=device, num_classes=num_classes)
 
-            latest_epoch_train_loss = epoch_train_loss / len(data_loader)
-            latest_epoch_val_loss = epoch_val_loss / len(data_loader_test)
             t_epoch_finish = time.time()
             print('-------------')
-            print('epoch {} || Epoch_TRAIN_Loss:{:.4f} || Epoch_VAL_Loss:{:.4f}'.format(
-                epoch + 1, latest_epoch_train_loss, latest_epoch_val_loss))
-            print('confmat', confmat)
+            print('epoch {} || Epoch_TRAIN_Loss:{:.4f} || Epoch_TRAIN_Acc:{:.4f} '
+                  '|| Epoch_VAL_Loss:{:.4f} || Epoch_VAL_Acc:{:.4f}'.format(
+                epoch + 1, average_epoch_train_loss, average_epoch_train_acc,
+                average_epoch_val_loss, average_epoch_val_acc))
             print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
             t_epoch_start = time.time()
 
-            statistics(epoch + 1, latest_epoch_train_loss, None, latest_epoch_val_loss, None)
+            statistics(epoch + 1, average_epoch_train_loss, average_epoch_train_acc,
+                       average_epoch_val_loss, average_epoch_val_acc)
 
-            writer.add_scalar('main/loss', latest_epoch_train_loss, epoch + 1)
+            writer.add_scalar('main/loss', average_epoch_train_loss, epoch + 1)
+            writer.add_scalar('main/acc', average_epoch_train_acc, epoch + 1)
             if (epoch + 1) % 10 == 0:
-                writer.add_scalar('test/loss', latest_epoch_val_loss, epoch + 1)
+                writer.add_scalar('test/loss', average_epoch_val_loss, epoch + 1)
+                writer.add_scalar('test/acc', average_epoch_val_acc, epoch + 1)
                 utils.save_on_master(
                     {
                         'model': model_without_ddp.state_dict(),

@@ -5,6 +5,8 @@ import io
 from PIL import Image
 from torchvision.datasets.vision import VisionDataset
 
+from utils import create_palette
+
 
 def get_dataset_size(dataset_id):
         datasets_client = DatasetsClient()
@@ -36,6 +38,7 @@ class AbejaDataset(VisionDataset):
         self.datalake_client = DatalakeClient()
         dataset = datasets_client.get_dataset(dataset_id)
         self.labels = dataset.props['categories'][0]['labels']
+        self.palette = create_palette(self.labels)
         self.use_cache = use_cache
 
         self.datalake_files = list()
@@ -45,7 +48,11 @@ class AbejaDataset(VisionDataset):
                 idx +=1
                 continue
 
-            data_uri = item.attributes['segmentation-image']['combined']['data_uri']
+            if 'segmentation-image' in item.attributes:
+                data_uri = item.attributes['segmentation-image']['combined']['data_uri']
+            else:
+                # FIXME: DEPRECATED. Type 'segmentation' is invalid on the latest spec.
+                data_uri = item.attributes['segmentation']['combined']['data_uri']
             m = re.search(r'datalake://(.+?)/(.+?)$', data_uri)
             src_data = item.source_data[0]
             self.datalake_files.append(DataLakeObj(m.group(1), m.group(2), src_data))
@@ -71,7 +78,7 @@ class AbejaDataset(VisionDataset):
         # target image
         content = datalake_file.get_content(cache=self.use_cache)
         file_like_object = io.BytesIO(content)
-        target = Image.open(file_like_object).convert('P')
+        target = Image.open(file_like_object).convert('RGB').quantize(palette=self.palette)
 
         if self.transforms is not None:
             src_img, target = self.transforms(src_img, target)
@@ -83,6 +90,3 @@ class AbejaDataset(VisionDataset):
 
     def num_class(self):
         return len(self.labels)+1 # label+background
-    
-
-

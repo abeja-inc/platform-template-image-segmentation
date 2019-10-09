@@ -15,26 +15,11 @@ import tempfile
 from abeja.datasets import Client as DatasetsClient
 import train
 import parameters
+from utils import create_colormap
 
 
 def bitget(number, pos):
     return (number >> pos) & 1
-
-
-def create_colormap(max_num):
-    colormap = {}
-    for i in range(0,max_num):
-        id = i
-        r=0
-        g=0
-        b=0
-        for j in range(0,8):
-            r = r | (bitget(id,0) << (7-j))
-            g = g | (bitget(id,1) << (7-j))
-            b = b | (bitget(id,2) << (7-j))
-            id = id >> 3
-        colormap[i] = [r,g,b]
-    return colormap
 
 
 def load_model(training_dir, device):
@@ -48,24 +33,25 @@ def load_model(training_dir, device):
     return model.eval(), num_classes
 
 
-def get_dataset_properties(dataset_ids):
+def get_dataset_labels(dataset_ids):
     datasets_client = DatasetsClient()
-    props = {}
+    labels = []
     for dataset_id in dataset_ids:
         dataset = datasets_client.get_dataset(dataset_id)
-        props = dataset.props
+        labels = dataset.props['categories'][0]['labels']
         break
-    return props
+    return labels
 
 
 def decode_segmap(out, label_colors):
     om = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
+    print('Argmax prediction result: ', om)
 
     r = np.zeros_like(om).astype(np.uint8)
     g = np.zeros_like(om).astype(np.uint8)
     b = np.zeros_like(om).astype(np.uint8)
   
-    for l,c in label_colors.items():
+    for l, c in enumerate(label_colors):
         idx = om == l
         r[idx] = c[0]
         g[idx] = c[1]
@@ -81,18 +67,18 @@ device_name = parameters.DEVICE if torch.cuda.is_available() else 'cpu'
 device = torch.device(device_name)
 
 model, num_classes = load_model(training_dir, device)
-color_map = create_colormap(num_classes)
-props = get_dataset_properties(dataset_ids)
+dataset_labels = get_dataset_labels(dataset_ids)
+color_map = create_colormap(dataset_labels)
 
 
 def segmentation(img):
     trf = T.Compose([T.Resize(520), 
                     T.ToTensor(), 
-                    T.Normalize(mean = [0.485, 0.456, 0.406], 
-                                std = [0.229, 0.224, 0.225])])
+                    T.Normalize(mean=[0.485, 0.456, 0.406],
+                                std=[0.229, 0.224, 0.225])])
     inp = trf(img).unsqueeze(0).to(device)
     output = model(inp)['out']
-    print(output)
+    print('Predict result: ', output)
     segmap = decode_segmap(output, color_map)
     return Image.fromarray(segmap)
 
@@ -122,7 +108,7 @@ def handler(request, context):
         return {
             'status_code': http.HTTPStatus.OK,
             'content_type': 'application/json; charset=utf8',
-            'content': {'properties': props, 'result': b64}
+            'content': {'labels': dataset_labels, 'result': b64}
         }
 
     except Exception as e:

@@ -4,6 +4,8 @@ import datetime
 import time
 import torch
 import torch.distributed as dist
+from PIL import Image
+import numpy as np
 
 import errno
 import os
@@ -203,6 +205,26 @@ class MetricLogger(object):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print('{} Total time: {}'.format(header, total_time_str))
+
+
+def hex2rgb(hex: str):
+    return tuple(int(hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+
+
+def create_colormap(labels: list) -> list:
+    colormap = [(0, 0, 0)]
+    for label in labels:
+        colormap.append(hex2rgb(label['color']))
+    return colormap
+
+
+def create_palette(labels: dict):
+    palimg = Image.new('P', (16, 16))
+    palette = [0, 0, 0]
+    for label in labels:
+        palette.extend(list(hex2rgb(label['color'])))
+    palimg.putpalette(palette)
+    return palimg
 
 
 def cat_list(images, fill_value=0):
