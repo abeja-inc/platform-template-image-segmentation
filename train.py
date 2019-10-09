@@ -107,7 +107,7 @@ def get_trainval_dataset_index(dataset_list, early_stopping_test_size):
 def criterion(inputs, target):
     losses = dict()
     for name, x in inputs.items():
-        losses[name] = nn.functional.cross_entropy(x, target, ignore_index=0)
+        losses[name] = nn.functional.cross_entropy(x, target, ignore_index=255)
 
     if len(losses) == 1:
         return losses['out']
@@ -133,12 +133,17 @@ def evaluate(model, criterion, data_loader, device, num_classes):
 
         confmat.reduce_from_all_processes()
 
-    return confmat, sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
+    print('eval confmat', confmat)
+    acc_global, _, _ = confmat.compute()
+    epoch_acc = acc_global.item()
+
+    return epoch_acc, sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
 
 
-def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq):
+def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq, num_classes):
     epoch_loss = list()
     model.train()
+    confmat = utils.ConfusionMatrix(num_classes)
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value}'))
     header = 'Epoch: [{}]'.format(epoch)
@@ -147,6 +152,7 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
         output = model(image)
         loss = criterion(output, target)
         epoch_loss.append(loss.item())
+        confmat.update(target.flatten(), output['out'].argmax(1).flatten())
 
         optimizer.zero_grad()
         loss.backward()
@@ -156,7 +162,11 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
 
         metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
 
-    return sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
+    confmat.reduce_from_all_processes()
+    acc_global, _, _ = confmat.compute()
+    epoch_acc = acc_global.item()
+
+    return epoch_acc, sum(epoch_loss)/len(epoch_loss) if len(epoch_loss) else 0.0
 
 
 def handler(context):
@@ -264,24 +274,29 @@ def handler(context):
         for epoch in range(parameters.EPOCHS):
             if parameters.DISTRIBUTED:
                 train_sampler.set_epoch(epoch)
-            average_epoch_train_loss = train_one_epoch(
-                model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, parameters.PRINT_FREQ)
-            confmat, average_epoch_val_loss = evaluate(
+            average_epoch_train_acc, average_epoch_train_loss = train_one_epoch(
+                model, criterion, optimizer, data_loader, lr_scheduler,
+                device, epoch, parameters.PRINT_FREQ, num_classes)
+            average_epoch_val_acc, average_epoch_val_loss = evaluate(
                 model, criterion, data_loader_test, device=device, num_classes=num_classes)
 
             t_epoch_finish = time.time()
             print('-------------')
-            print('epoch {} || Epoch_TRAIN_Loss:{:.4f} || Epoch_VAL_Loss:{:.4f}'.format(
-                epoch + 1, average_epoch_train_loss, average_epoch_val_loss))
-            print('confmat', confmat)
+            print('epoch {} || Epoch_TRAIN_Loss:{:.4f} || Epoch_TRAIN_Acc:{:.4f} '
+                  '|| Epoch_VAL_Loss:{:.4f} || Epoch_VAL_Acc:{:.4f}'.format(
+                epoch + 1, average_epoch_train_loss, average_epoch_train_acc,
+                average_epoch_val_loss, average_epoch_val_acc))
             print('timer:  {:.4f} sec.'.format(t_epoch_finish - t_epoch_start))
             t_epoch_start = time.time()
 
-            statistics(epoch + 1, average_epoch_train_loss, None, average_epoch_val_loss, None)
+            statistics(epoch + 1, average_epoch_train_loss, average_epoch_train_acc,
+                       average_epoch_val_loss, average_epoch_val_acc)
 
             writer.add_scalar('main/loss', average_epoch_train_loss, epoch + 1)
+            writer.add_scalar('main/acc', average_epoch_train_acc, epoch + 1)
             if (epoch + 1) % 10 == 0:
                 writer.add_scalar('test/loss', average_epoch_val_loss, epoch + 1)
+                writer.add_scalar('test/acc', average_epoch_val_acc, epoch + 1)
                 utils.save_on_master(
                     {
                         'model': model_without_ddp.state_dict(),

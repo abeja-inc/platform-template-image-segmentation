@@ -238,8 +238,8 @@ def cat_list(images, fill_value=0):
 
 def collate_fn(batch):
     images, targets = list(zip(*batch))
-    batched_imgs = cat_list(images)
-    batched_targets = cat_list(targets)
+    batched_imgs = cat_list(images, fill_value=0)
+    batched_targets = cat_list(targets, fill_value=255)
     return batched_imgs, batched_targets
 
 

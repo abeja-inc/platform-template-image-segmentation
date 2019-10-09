@@ -45,6 +45,7 @@ def get_dataset_labels(dataset_ids):
 
 def decode_segmap(out, label_colors):
     om = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
+    print(om)
 
     r = np.zeros_like(om).astype(np.uint8)
     g = np.zeros_like(om).astype(np.uint8)
@@ -73,8 +74,8 @@ color_map = create_colormap(dataset_labels)
 def segmentation(img):
     trf = T.Compose([T.Resize(520), 
                     T.ToTensor(), 
-                    T.Normalize(mean = [0.485, 0.456, 0.406], 
-                                std = [0.229, 0.224, 0.225])])
+                    T.Normalize(mean=[0.485, 0.456, 0.406],
+                                std=[0.229, 0.224, 0.225])])
     inp = trf(img).unsqueeze(0).to(device)
     output = model(inp)['out']
     print(output)
