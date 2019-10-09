@@ -137,7 +137,6 @@ def evaluate(model, criterion, data_loader, device, num_classes):
 
 
 def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, device, epoch, print_freq):
-    lr_scheduler.step(epoch)
     epoch_loss = list()
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -152,6 +151,8 @@ def train_one_epoch(model, criterion, optimizer, data_loader, lr_scheduler, devi
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        lr_scheduler.step()
 
         metric_logger.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
 
@@ -195,6 +196,7 @@ def handler(context):
                 "Training or Test dataset size is too small. "
                 "Please add more dataset or set EARLY_STOPPING_TEST_SIZE properly"
             )
+        drop_last = False if len(dataset) < parameters.BATCH_SIZE else True
  
         if parameters.DISTRIBUTED:
             train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
@@ -206,7 +208,7 @@ def handler(context):
         data_loader = torch.utils.data.DataLoader(
             dataset, batch_size=parameters.BATCH_SIZE,
             sampler=train_sampler, num_workers=parameters.NUM_DATA_LOAD_THREAD,
-            collate_fn=utils.collate_fn, drop_last=True)
+            collate_fn=utils.collate_fn, drop_last=drop_last)
 
         data_loader_test = torch.utils.data.DataLoader(
             dataset_test, batch_size=1,
@@ -245,7 +247,7 @@ def handler(context):
 
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer,
-            lambda epoch: pow((1 - (epoch+1) / parameters.EPOCHS), 0.9))
+            lambda x: (1 - x / (len(data_loader) * parameters.EPOCHS)) ** 0.9)
 
         print('num classes:', num_classes)
         print(len(dataset), 'train samples')
