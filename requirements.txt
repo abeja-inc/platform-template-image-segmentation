@@ -1,4 +1,3 @@
-abeja-sdk==0.2.10
 torch==1.2.0
 torchvision==0.4.0
 tb-nightly==1.15.0a20190903
