@@ -54,6 +54,12 @@ Distributed mode is being developed.
 
 
 ## Run on local
+Use `requirements-local.txt`.
+
+```
+$ pip install -r requirements-local.txt
+```
+
 Set environment variables.
 
 | env | type | description |
