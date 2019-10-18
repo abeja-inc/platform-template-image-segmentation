@@ -1,6 +1,7 @@
 from __future__ import print_function
 from collections import defaultdict, deque
 import datetime
+import random
 import time
 import torch
 import torch.distributed as dist
@@ -205,6 +206,10 @@ class MetricLogger(object):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print('{} Total time: {}'.format(header, total_time_str))
+
+
+def worker_init_fn(worker_id):
+    random.seed(worker_id)
 
 
 def hex2rgb(hex: str):
