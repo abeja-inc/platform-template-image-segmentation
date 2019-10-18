@@ -5,7 +5,8 @@ import io
 from PIL import Image
 from torchvision.datasets.vision import VisionDataset
 
-from utils import create_palette
+from utils import create_palette, alpha_to_color
+import numpy as np
 
 
 def get_dataset_size(dataset_id):
@@ -78,7 +79,7 @@ class AbejaDataset(VisionDataset):
         # target image
         content = datalake_file.get_content(cache=self.use_cache)
         file_like_object = io.BytesIO(content)
-        target = Image.open(file_like_object).convert('RGB').quantize(palette=self.palette)
+        target = alpha_to_color(Image.open(file_like_object)).quantize(palette=self.palette)
 
         if self.transforms is not None:
             src_img, target = self.transforms(src_img, target)

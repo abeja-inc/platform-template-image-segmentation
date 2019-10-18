@@ -212,6 +212,16 @@ def worker_init_fn(worker_id):
     random.seed(worker_id)
 
 
+def alpha_to_color(image, color=(0, 0, 0)):
+    x = np.array(image)
+    r, g, b, a = np.rollaxis(x, axis=-1)
+    r[a == 0] = color[0]
+    g[a == 0] = color[1]
+    b[a == 0] = color[2]
+    x = np.dstack([r, g, b])
+    return Image.fromarray(x, 'RGB')
+
+
 def hex2rgb(hex: str):
     return tuple(int(hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
 
