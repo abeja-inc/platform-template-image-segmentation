@@ -218,11 +218,13 @@ def handler(context):
         data_loader = torch.utils.data.DataLoader(
             dataset, batch_size=parameters.BATCH_SIZE,
             sampler=train_sampler, num_workers=parameters.NUM_DATA_LOAD_THREAD,
+            worker_init_fn=utils.worker_init_fn,
             collate_fn=utils.collate_fn, drop_last=drop_last)
 
         data_loader_test = torch.utils.data.DataLoader(
             dataset_test, batch_size=1,
             sampler=test_sampler, num_workers=parameters.NUM_DATA_LOAD_THREAD,
+            worker_init_fn=utils.worker_init_fn,
             collate_fn=utils.collate_fn)
 
         model = create_model(
