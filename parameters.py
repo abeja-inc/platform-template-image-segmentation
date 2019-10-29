@@ -26,7 +26,7 @@ RANDOM_SEED = int(os.environ.get('RANDOM_SEED', '42'))
 # fcn_resnet101, deeplabv3_resnet101
 SEGMENTATION_MODEL = os.environ.get('SEGMENTATION_MODEL', 'deeplabv3_resnet101')
 DEVICE = os.environ.get('DEVICE','cuda')
-FINE_TUNING = bool(os.environ.get('FINE_TUNING', 'False').lower() == 'true')
+FINE_TUNING = bool(os.environ.get('FINE_TUNING', 'True').lower() == 'true')
 PRINT_FREQ = int(os.environ.get('PRINT_FREQ', '10'))
 RESUME = os.environ.get('RESUME', '')
 AUX_LOSS = bool(os.environ.get('AUX_LOSS','False').lower() == 'true')
