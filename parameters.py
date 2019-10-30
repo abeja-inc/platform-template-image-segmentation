@@ -51,6 +51,9 @@ elif 'SLURM_PROCID' in os.environ:
 else:
     DISTRIBUTED = False
 
+# inference
+RESIZE_TO_ORIGINAL = bool(os.environ.get('RESIZE_TO_ORIGINAL','False').lower() == 'true')
+
 # For print
 parameters = {
     'BATCH_SIZE': BATCH_SIZE,
