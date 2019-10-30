@@ -65,6 +65,7 @@ training_dir = os.environ.get('ABEJA_TRAINING_RESULT_DIR', '.')
 dataset_ids = os.environ.get('TRAINING_JOB_DATASET_IDS', '').split(',')
 device_name = parameters.DEVICE if torch.cuda.is_available() else 'cpu'
 device = torch.device(device_name)
+resize_to_original = parameters.RESIZE_TO_ORIGINAL
 
 model, num_classes = load_model(training_dir, device)
 dataset_labels = get_dataset_labels(dataset_ids)
@@ -72,7 +73,7 @@ color_map = create_colormap(dataset_labels)
 
 
 def segmentation(img):
-    trf = T.Compose([T.Resize(520), 
+    trf = T.Compose([T.Resize(520),
                     T.ToTensor(), 
                     T.Normalize(mean=[0.485, 0.456, 0.406],
                                 std=[0.229, 0.224, 0.225])])
@@ -80,7 +81,10 @@ def segmentation(img):
     output = model(inp)['out']
     print('Predict result: ', output)
     segmap = decode_segmap(output, color_map)
-    return Image.fromarray(segmap)
+    new_img = Image.fromarray(segmap)
+    if resize_to_original:
+        new_img = new_img.resize(img.size)
+    return new_img
 
 
 def handler(request, context):

@@ -20,7 +20,7 @@ This template uses transfer-learning from Fully Convolutional Network or DeepLab
 - Allow only 1 training dataset and 1 validation dataset
 
 
-## Parameters
+## Training Parameters
 | env | type | required | default | description |
 | --- | --- | --- | --- | --- |
 | BATCH_SIZE | int | true | 32 | Batch size. |
@@ -40,6 +40,12 @@ This template uses transfer-learning from Fully Convolutional Network or DeepLab
 | EARLY_STOPPING_TEST_SIZE | float | false | 0.2 | Test data size for "Early stopping". Need to be from `0.0` to `1.0`. |
 | RESUME | str | false | None | Filepath. Set if you want to use pretrained your model. |
 | AUX_LOSS | bool | false | false | Set if you want to use aux loss. |
+
+## Inference Parameters
+| env | type | required | default | description |
+| --- | --- | --- | --- | --- |
+| RESIZE_TO_ORIGINAL | bool | true | false | Resize to the size of input image. Default is false, image size is the same as training. |
+| DEVICE | string | true | cuda | Device name to use: "cuda" or "cpu". |
 
 ### TBD
 Distributed mode is being developed.
