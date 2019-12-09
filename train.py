@@ -307,6 +307,7 @@ def handler(context):
                         'parameters': parameters.parameters
                     },
                     os.path.join(ABEJA_TRAINING_RESULT_DIR, 'model_{}.pth'.format(epoch)))
+            writer.flush()
 
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -321,11 +322,11 @@ def handler(context):
         remove_files = glob.glob(rm_file_path)
         for f in remove_files:
             os.remove(f)
-                   
     except Exception as e:
         print(str(e))
         print(traceback.format_exc())
         raise e
+    writer.close()
 
 
 if __name__ == '__main__':
