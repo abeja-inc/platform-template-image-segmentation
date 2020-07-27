@@ -33,7 +33,7 @@ This template uses transfer-learning from Fully Convolutional Network or DeepLab
 | NUM_DATA_LOAD_THREAD | int | true | 1 | Number of thread image loads. MUST NOT over `BATCH_SIZE`. |
 | SEGMENTATION_MODEL | string | true | deeplabv3_resnet101 | Segmentation Model "fcn_resnet101" or "deeplabv3_resnet101". |
 | DEVICE | string | true | cuda | Device name to use: "cuda" or "cpu". |
-| FINE_TUNING | bool | true | false | If "False", only the last layer is trained. |
+| FINE_TUNING | bool | true | true | If "False", only the last layer is trained. |
 | PRETRAINED | bool | true | true | If "True", training starts from pretrained model by MS COCO. |
 | PRINT_FREQ | int | true | 10 | Log frequency (epoch). |
 | RANDOM_SEED | int | false | 42 | Random seed. |
